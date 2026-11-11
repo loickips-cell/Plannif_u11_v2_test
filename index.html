@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Planinf U11 V2 — Test de connexion</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#142b4b;background:#f3f6fa}*{box-sizing:border-box}body{margin:0}header{background:#142b4b;color:#fff;padding:23px 18px}.wrap{max-width:520px;margin:24px auto;padding:0 16px}.card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 12px #102a4514}h1{font-size:23px;margin:0}h2{font-size:19px}p{line-height:1.5}label{display:block;font-weight:650;font-size:14px;margin:16px 0 6px}input{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;border-radius:10px}button{background:#142b4b;color:white;border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:650;cursor:pointer;margin-top:16px}button:disabled{opacity:.6;cursor:wait}.muted{color:#607487}.ok{color:#137b55}.error{color:#a52c2c}#logout{background:#e8eff5;color:#142b4b}
+</style>
+</head>
+<body>
+<header><div style="max-width:520px;margin:auto"><h1>⚽ Planinf U11 V2</h1><div>Test privé de connexion Supabase</div></div></header>
+<main class="wrap"><div class="card">
+<h2>Compte éducateur</h2>
+<p class="muted">Cette page teste uniquement la connexion et la lecture autorisée des séances. Elle n'enregistre aucune évaluation et ne modifie pas la V1.</p>
+<form id="login">
+<label for="email">E-mail du compte éducateur</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">Mot de passe</label><input id="password" type="password" autocomplete="current-password" required>
+<button id="submit" type="submit">Tester la connexion</button>
+</form>
+<p id="status" role="status" aria-live="polite"></p>
+<button id="logout" type="button" hidden>Se déconnecter</button>
+<p class="muted"><small>Ne partage pas ton mot de passe. Le jeton de test est conservé uniquement en mémoire de cette page et disparaît à sa fermeture ou à son rechargement.</small></p>
+</div></main>
+<script>
+'use strict';
+const BASE='https://xawjslbqkycnftfzbiyt.supabase.co';
+const PUBLISHABLE_KEY='sb_publishable_qNg9bBTU4KzptETdQN63ow_6OVs8-OD';
+const form=document.getElementById('login');
+const status=document.getElementById('status');
+const submit=document.getElementById('submit');
+const logout=document.getElementById('logout');
+let accessToken=null;
+function message(text,isError=false){status.textContent=text;status.className=isError?'error':'ok'}
+form.addEventListener('submit',async e=>{
+e.preventDefault();
+submit.disabled=true;message('Connexion en cours…');
+const email=document.getElementById('email').value.trim();
+const password=document.getElementById('password').value;
+try{
+const response=await fetch(BASE+'/auth/v1/token?grant_type=password',{
+method:'POST',
+headers:{'apikey':PUBLISHABLE_KEY,'Content-Type':'application/json'},
+body:JSON.stringify({email,password}),
+cache:'no-store'
+});
+const data=await response.json();
+if(!response.ok||!data.access_token)throw Error('Connexion refusée. Vérifie ton e-mail, ton mot de passe et la confirmation du compte.');
+accessToken=data.access_token;
+document.getElementById('password').value='';
+const check=await fetch(BASE+'/rest/v1/u11_sessions?select=id&limit=1',{
+headers:{'apikey':PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken},
+cache:'no-store'
+});
+if(!check.ok){const code=check.status;throw Error('Connexion réussie, mais lecture des séances refusée (HTTP '+code+').');}
+form.hidden=true;logout.hidden=false;
+message('Connexion réussie ! Accès authentifié à la table des séances confirmé. Aucune donnée modifiée.');
+}catch(err){message(err.message||'Erreur de connexion.',true)}
+finally{submit.disabled=false}
+});
+logout.addEventListener('click',async()=>{
+if(accessToken){try{await fetch(BASE+'/auth/v1/logout',{method:'POST',headers:{'apikey':PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken}})}catch(_){}}
+accessToken=null;form.hidden=false;logout.hidden=true;message('Déconnecté.');
+});
+</script>
+</body></html>
