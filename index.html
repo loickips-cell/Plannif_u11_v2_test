@@ -249,7 +249,7 @@ function resetCollectiveEvaluation(){
  document.getElementById('saveCollective').textContent='Enregistrer l’évaluation collective';
 }
 function normalizePedagogicalText(value){
- return String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+ return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 }
 async function loadProcedureReferences(){
  try{
