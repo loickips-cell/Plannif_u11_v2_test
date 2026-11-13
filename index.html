@@ -8,13 +8,14 @@
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#142b4b;background:#f3f6fa}*{box-sizing:border-box}body{margin:0}header{background:#142b4b;color:#fff;padding:23px 18px}.wrap{max-width:520px;margin:24px auto;padding:0 16px}.card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 12px #102a4514}h1{font-size:23px;margin:0}h2{font-size:19px}p{line-height:1.5}label{display:block;font-weight:650;font-size:14px;margin:16px 0 6px}input{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;border-radius:10px}button{background:#142b4b;color:white;border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:650;cursor:pointer;margin-top:16px}button:disabled{opacity:.6;cursor:wait}.muted{color:#607487}.ok{color:#137b55}.error{color:#a52c2c}#logout{background:#e8eff5;color:#142b4b}
 .players-panel{margin-top:18px}.player-line{padding:12px 0;border-top:1px solid #e5ebf1;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.player-line button{margin:0;padding:7px 10px;font-size:13px}.player-line .secondary{background:#e8eff5;color:#142b4b}.player-form{display:grid;grid-template-columns:1fr;gap:10px}.player-form label{margin-top:8px}.player-form input{min-width:0}.player-form button{grid-column:1/-1}.small{font-size:13px}.player-name{overflow-wrap:anywhere}@media(max-width:420px){.player-form{grid-template-columns:1fr}}
+select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;border-radius:10px;background:white;color:#142b4b}textarea{min-height:75px}.eval-panel{margin:18px 0}.eval-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.eval-grid label{margin-top:8px}.eval-actions{display:flex;gap:8px}.eval-actions button{flex:1}.eval-actions button.secondary{background:#e8eff5;color:#142b4b}.procedure{border-top:1px solid #e5ebf1;margin-top:14px;padding-top:12px}.procedure label{margin-top:7px}.hint{font-size:12px;color:#607487}@media(max-width:420px){.eval-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header><div style="max-width:520px;margin:auto"><h1>⚽ Planinf U11 V2</h1><div>Consultation des séances Supabase</div></div></header>
 <main class="wrap"><div class="card">
 <h2>Compte éducateur</h2>
-<p class="muted">Cette page teste uniquement la connexion et la lecture autorisée des séances. Elle n'enregistre aucune évaluation et ne modifie pas la V1.</p>
+<p class="muted">Connecte-toi pour consulter les séances, gérer l'effectif et enregistrer des évaluations collectives et individuelles. La V1 n'est pas modifiée.</p>
 <form id="login">
 <label for="email">E-mail du compte éducateur</label><input id="email" type="email" autocomplete="username" required>
 <label for="password">Mot de passe</label><input id="password" type="password" autocomplete="current-password" required>
@@ -32,6 +33,29 @@
 </form>
 <p id="playerStatus" role="status" aria-live="polite"></p>
 <div id="playerList"></div>
+</section><section id="evaluation" class="card eval-panel" hidden>
+<h2>Évaluations</h2>
+<div class="eval-actions"><button id="collectiveTab" type="button">Collective</button><button id="individualTab" type="button" class="secondary">Individuelle</button></div>
+<p class="hint">Notes : 1 difficile · 2 à renforcer · 3 satisfaisant · 4 maîtrisé</p>
+<label for="evalSession">Séance</label><select id="evalSession"></select>
+<label for="evalDate">Date réelle</label><input id="evalDate" type="date">
+<form id="collectiveForm">
+<label for="attendance">Nombre de joueurs présents</label><input id="attendance" type="number" min="0" max="30" required>
+<div id="procedures"></div>
+<label for="collectiveNotes">Bilan collectif / motricité / transfert</label><textarea id="collectiveNotes"></textarea>
+<label for="nextSteps">Adaptations pour la suite</label><textarea id="nextSteps"></textarea>
+<button id="saveCollective" type="submit">Enregistrer l'évaluation collective</button>
+</form>
+<form id="individualForm" hidden>
+<label for="evalPlayer">Joueur</label><select id="evalPlayer" required></select>
+<label for="criterion">Critère évalué</label><select id="criterion" required>
+<option value="">Choisir un critère</option><option value="Technique individuelle">Technique individuelle</option><option value="Prise d'information">Prise d'information</option><option value="Compréhension du jeu">Compréhension du jeu</option><option value="Motricité / coordination">Motricité / coordination</option><option value="Comportement / engagement">Comportement / engagement</option>
+</select>
+<label for="individualScore">Note (1 à 4)</label><select id="individualScore" required><option value="">Choisir une note</option><option value="1">1 — Difficile</option><option value="2">2 — À renforcer</option><option value="3">3 — Satisfaisant</option><option value="4">4 — Maîtrisé</option></select>
+<label for="individualObservation">Observation</label><textarea id="individualObservation"></textarea>
+<button id="saveIndividual" type="submit">Enregistrer l'évaluation individuelle</button>
+</form>
+<p id="evalStatus" role="status" aria-live="polite"></p>
 </section><section id="sessions" hidden><h2>Séances U11</h2><p id="total"></p><div id="listing"></div></section></main>
 <script>
 'use strict';
@@ -61,6 +85,7 @@ async function playerRequest(path,options={}){
 }
 async function loadPlayers(){
  const data=await playerRequest('u11_players?select=id,player_code,display_name,active&order=player_code.asc&limit=200');
+ playerRows=data;
  playerList.replaceChildren();
  const heading=document.createElement('p');heading.className='muted small';
  heading.textContent=data.length+' joueur(s), dont '+data.filter(x=>x.active).length+' actif(s)';playerList.append(heading);
@@ -77,14 +102,14 @@ async function loadPlayers(){
    if(name===null)return;
    const clean=name.trim();if(!clean||clean.length>80){playerMessage('Nom invalide.',true);return}
    edit.disabled=true;
-   try{await playerRequest('u11_players?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',body:JSON.stringify({display_name:clean})});await loadPlayers();playerMessage('Joueur mis à jour.')}
+   try{await playerRequest('u11_players?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',body:JSON.stringify({display_name:clean})});await loadPlayers();refreshEvaluationChoices();playerMessage('Joueur mis à jour.')}
    catch(e){playerMessage(e.message,true)}finally{edit.disabled=false}
   });
   const toggle=document.createElement('button');toggle.type='button';toggle.className='secondary';toggle.textContent=p.active?'Désactiver':'Réactiver';
   toggle.addEventListener('click',async()=>{
    if(!confirm((p.active?'Désactiver ':'Réactiver ')+(p.display_name||p.player_code)+' ?'))return;
    toggle.disabled=true;
-   try{await playerRequest('u11_players?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',body:JSON.stringify({active:!p.active})});await loadPlayers();playerMessage('Statut mis à jour.')}
+   try{await playerRequest('u11_players?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',body:JSON.stringify({active:!p.active})});await loadPlayers();refreshEvaluationChoices();playerMessage('Statut mis à jour.')}
    catch(e){playerMessage(e.message,true)}finally{toggle.disabled=false}
   });
   controls.append(edit,toggle);line.append(label,controls);playerList.append(line);
@@ -99,19 +124,98 @@ playerForm.addEventListener('submit',async e=>{
  savePlayer.disabled=true;playerMessage('Enregistrement…');
  try{
   await playerRequest('u11_players',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({player_code:code,display_name:name,active:true})});
-  playerForm.reset();await loadPlayers();playerMessage('Joueur ajouté avec succès.');
+  playerForm.reset();await loadPlayers();refreshEvaluationChoices();playerMessage('Joueur ajouté avec succès.');
  }catch(err){playerMessage(err.message||'Enregistrement impossible.',true)}
  finally{savePlayer.disabled=false}
+});
+
+
+const evalPanel=document.getElementById('evaluation');
+const evalSession=document.getElementById('evalSession');
+const evalPlayer=document.getElementById('evalPlayer');
+const evalDate=document.getElementById('evalDate');
+const evalStatus=document.getElementById('evalStatus');
+let sessionRows=[];
+let playerRows=[];
+const procedureNames=['Échauffement technique','Exercice technique orienté','Situation','Jeu'];
+function evaluationMessage(value,error=false){evalStatus.textContent=value;evalStatus.className=error?'error':'ok'}
+function makeOption(value,label){const opt=document.createElement('option');opt.value=value;opt.textContent=label;return opt}
+function refreshEvaluationChoices(){
+ evalSession.replaceChildren(makeOption('','Choisir une séance'));
+ for(const x of sessionRows)evalSession.append(makeOption(x.id,(x.session_code||'Séance')+' — '+(x.theme||'Sans thème')));
+ evalPlayer.replaceChildren(makeOption('','Choisir un joueur'));
+ for(const p of playerRows.filter(p=>p.active))evalPlayer.append(makeOption(p.id,p.display_name||'Sans nom'));
+ evalDate.value=new Date().toLocaleDateString('en-CA');
+ const target=document.getElementById('procedures');target.replaceChildren();
+ for(let i=0;i<4;i++){
+  const div=document.createElement('div');div.className='procedure';
+  const h=document.createElement('strong');h.textContent=(i+1)+'. '+procedureNames[i];
+  const scoreLabel=document.createElement('label');scoreLabel.textContent='Note';
+  const score=document.createElement('select');score.required=true;score.name='rating'+i;
+  score.append(makeOption('','Choisir une note'));
+  for(let n=1;n<=4;n++)score.append(makeOption(String(n),String(n)));
+  const noteLabel=document.createElement('label');noteLabel.textContent='Observation';
+  const note=document.createElement('textarea');note.name='comment'+i;
+  div.append(h,scoreLabel,score,noteLabel,note);target.append(div);
+ }
+ evalPanel.hidden=false;
+}
+function setEvalMode(mode){
+ const collective=mode==='collective';
+ document.getElementById('collectiveForm').hidden=!collective;
+ document.getElementById('individualForm').hidden=collective;
+ document.getElementById('collectiveTab').className=collective?'':'secondary';
+ document.getElementById('individualTab').className=collective?'secondary':'';
+ evaluationMessage('');
+}
+document.getElementById('collectiveTab').addEventListener('click',()=>setEvalMode('collective'));
+document.getElementById('individualTab').addEventListener('click',()=>setEvalMode('individual'));
+function sharedEvaluationFields(){
+ if(!accessToken)throw Error('Connecte-toi avant de saisir une évaluation.');
+ if(!evalSession.value)throw Error('Choisis une séance.');
+ if(!evalDate.value)throw Error('Choisis une date.');
+ return {session_id:evalSession.value,evaluation_date:evalDate.value};
+}
+document.getElementById('collectiveForm').addEventListener('submit',async e=>{
+ e.preventDefault();const button=document.getElementById('saveCollective');button.disabled=true;
+ try{
+  const common=sharedEvaluationFields();
+  const ratings=[],comments=[];
+  for(let i=0;i<4;i++){
+   const score=document.querySelector('[name="rating'+i+'"]');
+   const note=document.querySelector('[name="comment'+i+'"]');
+   if(!score.value)throw Error('Note les quatre procédés.');
+   ratings.push(Number(score.value));comments.push(note.value.trim());
+  }
+  const attendance=Number(document.getElementById('attendance').value);
+  if(!Number.isInteger(attendance)||attendance<0||attendance>30)throw Error('Nombre de présents invalide.');
+  await playerRequest('u11_session_evaluations',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({...common,attendance,ratings,comments,collective_notes:document.getElementById('collectiveNotes').value.trim(),next_steps:document.getElementById('nextSteps').value.trim()})});
+  evaluationMessage('Évaluation collective enregistrée dans Supabase.');
+ }catch(err){evaluationMessage(err.message,true)}finally{button.disabled=false}
+});
+document.getElementById('individualForm').addEventListener('submit',async e=>{
+ e.preventDefault();const button=document.getElementById('saveIndividual');button.disabled=true;
+ try{
+  const common=sharedEvaluationFields();
+  if(!evalPlayer.value)throw Error('Choisis un joueur.');
+  const criterion=document.getElementById('criterion').value;
+  const score=Number(document.getElementById('individualScore').value);
+  if(!criterion||![1,2,3,4].includes(score))throw Error('Choisis un critère et une note.');
+  await playerRequest('u11_player_evaluations',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({...common,player_id:evalPlayer.value,criterion,score,observation:document.getElementById('individualObservation').value.trim()})});
+  document.getElementById('criterion').value='';document.getElementById('individualScore').value='';document.getElementById('individualObservation').value='';
+  evaluationMessage('Évaluation individuelle enregistrée dans Supabase.');
+ }catch(err){evaluationMessage(err.message,true)}finally{button.disabled=false}
 });
 
 const sessions=document.getElementById('sessions');
 const listing=document.getElementById('listing');
 const total=document.getElementById('total');
 async function showSessions(){
- const response=await fetch(BASE+'/rest/v1/u11_sessions?select=session_code,session_number,session_type,month_name,phase,theme,reference_page&limit=100',{headers:{apikey:PUBLISHABLE_KEY,Authorization:'Bearer '+accessToken},cache:'no-store'});
+ const response=await fetch(BASE+'/rest/v1/u11_sessions?select=id,session_code,session_number,session_type,month_name,phase,theme,reference_page&limit=100',{headers:{apikey:PUBLISHABLE_KEY,Authorization:'Bearer '+accessToken},cache:'no-store'});
  if(!response.ok)throw Error('Lecture des séances impossible (HTTP '+response.status+').');
  const data=await response.json();
  if(!Array.isArray(data))throw Error('Réponse de séances incorrecte.');
+ sessionRows=data;
  listing.replaceChildren();
  total.textContent=data.length+' séances enregistrées';
  for(const month of ['Septembre','Octobre','Novembre','Décembre']){
@@ -157,12 +261,13 @@ const count=await showSessions();
 form.hidden=true;logout.hidden=false;
 message('Connexion réussie ! '+count+' séances affichées.');
 try{await loadPlayers()}catch(err){playersPanel.hidden=false;playerMessage('Lecture des joueurs impossible : '+err.message,true)}
+refreshEvaluationChoices();setEvalMode('collective');
 }catch(err){message(err.message||'Erreur de connexion.',true)}
 finally{submit.disabled=false}
 });
 logout.addEventListener('click',async()=>{
 if(accessToken){try{await fetch(BASE+'/auth/v1/logout',{method:'POST',headers:{'apikey':PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken}})}catch(_){}}
-accessToken=null;form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();playersPanel.hidden=true;playerList.replaceChildren();playerMessage('');message('Déconnecté.');
+accessToken=null;form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();playersPanel.hidden=true;playerList.replaceChildren();evalPanel.hidden=true;sessionRows=[];playerRows=[];evaluationMessage('');playerMessage('');message('Déconnecté.');
 });
 </script>
 </body></html>
