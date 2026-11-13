@@ -10,7 +10,7 @@
 </style>
 </head>
 <body>
-<header><div style="max-width:520px;margin:auto"><h1>⚽ Planinf U11 V2</h1><div>Test privé de connexion Supabase</div></div></header>
+<header><div style="max-width:520px;margin:auto"><h1>⚽ Planinf U11 V2</h1><div>Consultation des séances Supabase</div></div></header>
 <main class="wrap"><div class="card">
 <h2>Compte éducateur</h2>
 <p class="muted">Cette page teste uniquement la connexion et la lecture autorisée des séances. Elle n'enregistre aucune évaluation et ne modifie pas la V1.</p>
@@ -22,7 +22,7 @@
 <p id="status" role="status" aria-live="polite"></p>
 <button id="logout" type="button" hidden>Se déconnecter</button>
 <p class="muted"><small>Ne partage pas ton mot de passe. Le jeton de test est conservé uniquement en mémoire de cette page et disparaît à sa fermeture ou à son rechargement.</small></p>
-</div></main>
+</div><section id="sessions" hidden><h2>Séances U11</h2><p id="total"></p><div id="listing"></div></section></main>
 <script>
 'use strict';
 const BASE='https://xawjslbqkycnftfzbiyt.supabase.co';
@@ -32,6 +32,33 @@ const status=document.getElementById('status');
 const submit=document.getElementById('submit');
 const logout=document.getElementById('logout');
 let accessToken=null;
+const sessions=document.getElementById('sessions');
+const listing=document.getElementById('listing');
+const total=document.getElementById('total');
+async function showSessions(){
+ const response=await fetch(BASE+'/rest/v1/u11_sessions?select=session_code,session_number,session_type,month_name,phase,theme,reference_page&limit=100',{headers:{apikey:PUBLISHABLE_KEY,Authorization:'Bearer '+accessToken},cache:'no-store'});
+ if(!response.ok)throw Error('Lecture des séances impossible (HTTP '+response.status+').');
+ const data=await response.json();
+ if(!Array.isArray(data))throw Error('Réponse de séances incorrecte.');
+ listing.replaceChildren();
+ total.textContent=data.length+' séances enregistrées';
+ for(const month of ['Septembre','Octobre','Novembre','Décembre']){
+  const rows=data.filter(x=>String(x.month_name||'').toLowerCase()===month.toLowerCase());
+  if(!rows.length)continue;
+  rows.sort((a,b)=>(Number(a.session_number)||0)-(Number(b.session_number)||0)||String(a.session_code).localeCompare(String(b.session_code)));
+  const block=document.createElement('div');block.className='card';block.style.marginBottom='16px';
+  const heading=document.createElement('h2');heading.textContent=month+' ('+rows.length+')';block.append(heading);
+  for(const x of rows){
+   const p=document.createElement('p');p.style.borderTop='1px solid #e5ebf1';p.style.paddingTop='10px';
+   const strong=document.createElement('strong');strong.textContent=(x.session_code||'Séance')+' — '+(x.theme||'Thème non renseigné');
+   const small=document.createElement('small');small.className='muted';small.textContent=' · '+(x.session_type==='motricite'?'Motricité':'Football')+' · '+(x.phase||'Phase non renseignée')+(x.reference_page?' · PDF p. '+x.reference_page:'');
+   p.append(strong,small);block.append(p);
+  }
+  listing.append(block);
+ }
+ sessions.hidden=false;
+ return data.length;
+}
 function message(text,isError=false){status.textContent=text;status.className=isError?'error':'ok'}
 form.addEventListener('submit',async e=>{
 e.preventDefault();
@@ -54,14 +81,15 @@ headers:{'apikey':PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken},
 cache:'no-store'
 });
 if(!check.ok){const code=check.status;throw Error('Connexion réussie, mais lecture des séances refusée (HTTP '+code+').');}
+const count=await showSessions();
 form.hidden=true;logout.hidden=false;
-message('Connexion réussie ! Accès authentifié à la table des séances confirmé. Aucune donnée modifiée.');
+message('Connexion réussie ! '+count+' séances affichées.');
 }catch(err){message(err.message||'Erreur de connexion.',true)}
 finally{submit.disabled=false}
 });
 logout.addEventListener('click',async()=>{
 if(accessToken){try{await fetch(BASE+'/auth/v1/logout',{method:'POST',headers:{'apikey':PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken}})}catch(_){}}
-accessToken=null;form.hidden=false;logout.hidden=true;message('Déconnecté.');
+accessToken=null;form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();message('Déconnecté.');
 });
 </script>
 </body></html>
