@@ -11,13 +11,14 @@
 select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;border-radius:10px;background:white;color:#142b4b}textarea{min-height:75px}.eval-panel{margin:18px 0}.eval-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.eval-grid label{margin-top:8px}.eval-actions{display:flex;gap:8px}.eval-actions button{flex:1}.eval-actions button.secondary{background:#e8eff5;color:#142b4b}.procedure{border-top:1px solid #e5ebf1;margin-top:14px;padding-top:12px}.procedure label{margin-top:7px}.hint{font-size:12px;color:#607487}@media(max-width:420px){.eval-grid{grid-template-columns:1fr}}
 .dash{margin:20px 0}.dash-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.metric{background:#edf3fa;border-radius:12px;padding:15px;cursor:pointer}.metric strong{font-size:25px;display:block}.dash-charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:15px}.dash-box{border:1px solid #e0e8f1;border-radius:12px;padding:14px;min-width:0}.dash-box h3{margin:0 0 10px;font-size:16px}.dash-svg{width:100%;height:auto;display:block;overflow:visible}.dash-svg circle,.dash-svg rect[data-key]{cursor:pointer}.dash-detail{margin-top:16px;border-top:1px solid #d8e2ec;padding-top:12px}.dash-detail button{margin:4px 5px 4px 0}.dash-entry{padding:10px;border-bottom:1px solid #e5ebf1}.dash-filter{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dash-filter label{margin:0}.dash-filter select{margin-top:5px}.metric:focus-visible,.dash-svg circle:focus-visible{outline:3px solid #ff9800}@media(max-width:700px){.dash-grid,.dash-charts{grid-template-columns:1fr 1fr}}@media(max-width:460px){.dash-grid,.dash-charts,.dash-filter{grid-template-columns:1fr}}[hidden]{display:none!important}
 .app-nav{display:flex;gap:7px;overflow-x:auto;padding:12px 0;position:sticky;top:0;background:#f3f6fa;z-index:10}.app-nav button{margin:0;white-space:nowrap;background:#e4edf7;color:#142b4b;font-size:14px;padding:11px 14px}.app-nav button[aria-current="page"]{background:#142b4b;color:white}.app-nav #logout{margin:0 0 0 auto;background:#d8e3ef;color:#142b4b}.app-section{margin-top:15px}.wrap{max-width:1100px}@media(max-width:600px){.app-nav{margin:0 -16px;padding:10px 16px}.app-nav button{font-size:13px;padding:10px 12px}}
+.occ-card{margin:14px 0}.occ-list{margin-top:15px}.occ-item{border-top:1px solid #e1e9f1;padding:12px 0}.occ-item strong{display:block}.occ-item button{margin:6px 6px 0 0;padding:8px 10px;font-size:13px}.occ-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.occ-grid label{margin-top:8px}@media(max-width:540px){.occ-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header><div style="max-width:1100px;margin:auto"><h1>⚽ Planinf U11 V2</h1><div>Consultation des séances Supabase</div></div></header>
 <main class="wrap"><nav id="appNav" class="app-nav" aria-label="Navigation de l'application" hidden>
 <button type="button" data-view="home" aria-current="page">🏠 Accueil</button>
-<button type="button" data-view="sessions">📅 Séances</button>
+<button type="button" data-view="sessions">📚 Séances</button><button type="button" data-view="planning">📅 Planning</button>
 <button type="button" data-view="players">👥 Effectif</button>
 <button type="button" data-view="evaluation">📝 Évaluations</button>
 <button type="button" data-view="dashboard">📊 Bilans</button>
@@ -71,6 +72,17 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <div class="dash-charts"><div class="dash-box"><h3>Évolution collective par procédé</h3><div id="collectiveChart"></div></div><div class="dash-box"><h3>Progression individuelle par critère</h3><div id="individualChart"></div></div><div class="dash-box"><h3>Moyenne par critère — équipe</h3><div id="criterionChart"></div></div><div class="dash-box"><h3>Répartition des notes</h3><div id="distributionChart"></div></div></div>
 <div id="dashDetail" class="dash-detail" hidden></div>
 <button id="refreshDashboard" type="button">Actualiser les bilans</button>
+</section><section id="planning" class="card app-section" hidden>
+<h2>Planification réelle</h2><p class="muted small">La programmation reste inchangée. Une même séance peut être prévue, reportée, annulée ou réalisée plusieurs fois à des dates différentes.</p>
+<form id="occForm">
+<label for="occSession">Séance de référence</label><select id="occSession" required></select>
+<div class="occ-grid"><div><label for="occPlanned">Date prévue (facultative)</label><input id="occPlanned" type="date"></div><div><label for="occActual">Date réelle (si réalisée)</label><input id="occActual" type="date"></div></div>
+<label for="occStatus">Statut</label><select id="occStatus"><option value="prevue">Prévue</option><option value="reportee">Reportée</option><option value="realisee">Réalisée</option><option value="annulee">Annulée</option></select>
+<label for="occReason">Motif / précision</label><input id="occReason" maxlength="250" placeholder="Météo, terrain indisponible, changement de programme…">
+<label for="occNotes">Notes</label><textarea id="occNotes"></textarea>
+<button id="occSave" type="submit">Ajouter cette occurrence</button>
+</form><p id="occMessage" role="status" aria-live="polite"></p>
+<div class="occ-list" id="occList"></div>
 </section><section id="sessions" class="app-section" hidden><h2>Séances U11</h2><p id="total"></p><div id="listing"></div></section></main>
 <script>
 'use strict';
@@ -78,7 +90,7 @@ const BASE='https://xawjslbqkycnftfzbiyt.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_qNg9bBTU4KzptETdQN63ow_6OVs8-OD';
 const nav=document.getElementById('appNav');
 const accountPanel=document.getElementById('accountPanel');
-const viewNames=['home','sessions','players','evaluation','dashboard'];
+const viewNames=['home','sessions','planning','players','evaluation','dashboard'];
 let activeView='home';
 function showView(name){
  if(!viewNames.includes(name))return;
@@ -93,6 +105,7 @@ function updateHome(){
  for(const [label,value,view] of [
   ['Séances programmées',sessionRows.length,'sessions'],
   ['Joueurs actifs',playerRows.filter(p=>p.active).length,'players'],
+  ['Séances réalisées',occurrenceRows.filter(o=>o.status==='realisee').length,'planning'],
   ['Évaluations collectives',collectiveRows.length,'dashboard'],
   ['Évaluations individuelles',individualRows.length,'dashboard']
  ]){
@@ -351,6 +364,63 @@ async function loadDashboard(){
 document.getElementById('dashMonth').addEventListener('change',()=>{dashDetail.hidden=true;renderDashboard()});
 document.getElementById('dashPlayer').addEventListener('change',()=>{dashDetail.hidden=true;renderDashboard()});
 document.getElementById('refreshDashboard').addEventListener('click',loadDashboard);
+
+const occPanel=document.getElementById('planning');
+const occList=document.getElementById('occList');
+const occMessage=document.getElementById('occMessage');
+let occurrenceRows=[];
+let occurrenceReady=false;
+const occLabels={prevue:'Prévue',reportee:'Reportée',realisee:'Réalisée',annulee:'Annulée'};
+function occNotice(value,error=false){occMessage.textContent=value;occMessage.className=error?'error':'muted'}
+function occurrencePayload(){
+ const session_id=document.getElementById('occSession').value;
+ const planned_date=document.getElementById('occPlanned').value||null;
+ const actual_date=document.getElementById('occActual').value||null;
+ const status=document.getElementById('occStatus').value;
+ if(!session_id)throw Error('Choisis une séance.');
+ if(status==='realisee'&&!actual_date)throw Error('Indique la date réelle de réalisation.');
+ return {session_id,planned_date,actual_date,status,reason:document.getElementById('occReason').value.trim(),notes:document.getElementById('occNotes').value.trim()};
+}
+function renderOccurrences(){
+ occList.replaceChildren();
+ const h=document.createElement('h3');h.textContent='Historique des séances ('+occurrenceRows.length+')';occList.append(h);
+ if(!occurrenceRows.length){dashText(occList,'Aucune occurrence planifiée. Les évaluations déjà enregistrées restent disponibles dans les bilans.');return}
+ const rows=occurrenceRows.slice().sort((a,b)=>String(b.actual_date||b.planned_date||b.created_at).localeCompare(String(a.actual_date||a.planned_date||a.created_at)));
+ for(const x of rows){
+  const item=document.createElement('div');item.className='occ-item';
+  const title=document.createElement('strong');title.textContent=sessionName(x.session_id);item.append(title);
+  const desc=document.createElement('div');desc.className='small';desc.textContent=(occLabels[x.status]||x.status)+' · Prévue : '+(x.planned_date||'non renseignée')+' · Réalisée : '+(x.actual_date||'non renseignée');item.append(desc);
+  if(x.reason||x.notes){const p=document.createElement('p');p.className='muted small';p.textContent=[x.reason,x.notes].filter(Boolean).join(' — ');item.append(p)}
+  const edit=document.createElement('button');edit.type='button';edit.textContent='Modifier';edit.addEventListener('click',async()=>{
+   const newStatus=prompt('Statut : prevue, reportee, realisee ou annulee',x.status);
+   if(newStatus===null)return;
+   const st=newStatus.trim().toLowerCase();
+   if(!Object.hasOwn(occLabels,st)){occNotice('Statut invalide.',true);return}
+   const planned=prompt('Date prévue (AAAA-MM-JJ, vide si aucune)',x.planned_date||'');if(planned===null)return;
+   const actual=prompt('Date réelle (AAAA-MM-JJ, vide si aucune)',x.actual_date||'');if(actual===null)return;
+   const valid=d=>!d||/^\d{4}-\d{2}-\d{2}$/.test(d);
+   if(!valid(planned)||!valid(actual)||(st==='realisee'&&!actual)){occNotice('Date invalide ou manquante.',true);return}
+   try{await playerRequest('u11_session_occurrences?id=eq.'+encodeURIComponent(x.id),{method:'PATCH',body:JSON.stringify({status:st,planned_date:planned||null,actual_date:actual||null,updated_at:new Date().toISOString()})});await loadOccurrences();occNotice('Occurrence mise à jour.')}
+   catch(err){occNotice(err.message,true)}
+  });
+  item.append(edit);occList.append(item);
+ }
+}
+async function loadOccurrences(){
+ try{
+  occurrenceRows=await playerRequest('u11_session_occurrences?select=id,session_id,planned_date,actual_date,status,reason,notes,created_at&order=created_at.desc&limit=1000');
+  occurrenceReady=true;renderOccurrences();occNotice('Planification chargée.');
+ }catch(err){occurrenceReady=false;occNotice('Planification indisponible : exécute d’abord la migration SQL Supabase. '+err.message,true)}
+}
+document.getElementById('occForm').addEventListener('submit',async e=>{
+ e.preventDefault();const btn=document.getElementById('occSave');btn.disabled=true;
+ try{if(!occurrenceReady)throw Error('La table de planification doit d’abord être créée dans Supabase.');
+  const payload=occurrencePayload();
+  await playerRequest('u11_session_occurrences',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});
+  e.target.reset();await loadOccurrences();occNotice('Occurrence enregistrée.');
+ }catch(err){occNotice(err.message,true)}finally{btn.disabled=false}
+});
+
 const sessions=document.getElementById('sessions');
 const listing=document.getElementById('listing');
 const total=document.getElementById('total');
@@ -405,13 +475,13 @@ const count=await showSessions();
 form.hidden=true;logout.hidden=false;nav.append(logout);accountPanel.hidden=true;nav.hidden=false;showView('home');
 message('Connexion réussie ! '+count+' séances disponibles.');
 try{await loadPlayers()}catch(err){playersPanel.hidden=false;playerMessage('Lecture des joueurs impossible : '+err.message,true)}
-refreshEvaluationChoices();setEvalMode('collective');updateHome();await loadDashboard();updateHome();
+refreshEvaluationChoices();setEvalMode('collective');const occSelect=document.getElementById('occSession');occSelect.replaceChildren(makeOption('','Choisir une séance'));for(const row of sessionRows)occSelect.append(makeOption(row.id,(row.session_code||'Séance')+' — '+(row.theme||'')));await loadOccurrences();updateHome();await loadDashboard();updateHome();
 }catch(err){message(err.message||'Erreur de connexion.',true)}
 finally{submit.disabled=false}
 });
 logout.addEventListener('click',async()=>{
 if(accessToken){try{await fetch(BASE+'/auth/v1/logout',{method:'POST',headers:{'apikey':PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken}})}catch(_){}}
-accessToken=null;nav.hidden=true;accountPanel.hidden=false;document.getElementById('home').hidden=true;activeView='home';form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();playersPanel.hidden=true;playerList.replaceChildren();evalPanel.hidden=true;dashPanel.hidden=true;dashDetail.hidden=true;collectiveRows=[];individualRows=[];sessionRows=[];playerRows=[];evaluationMessage('');playerMessage('');message('Déconnecté.');
+accessToken=null;nav.hidden=true;accountPanel.hidden=false;document.getElementById('home').hidden=true;activeView='home';form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();playersPanel.hidden=true;playerList.replaceChildren();evalPanel.hidden=true;occPanel.hidden=true;occurrenceRows=[];occurrenceReady=false;dashPanel.hidden=true;dashDetail.hidden=true;collectiveRows=[];individualRows=[];sessionRows=[];playerRows=[];evaluationMessage('');playerMessage('');message('Déconnecté.');
 });
 </script>
 </body></html>
