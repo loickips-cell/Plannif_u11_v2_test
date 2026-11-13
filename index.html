@@ -79,7 +79,7 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <div class="cal-days" id="calDays"></div>
 <p id="occMessage" role="status" aria-live="polite"></p>
 <div id="calEditor" hidden class="cal-editor"></div>
-<div class="cal-setup"><p><strong>Initialisation du planning 2026–2027</strong></p><p class="muted small">Du 1er septembre 2026 au 29 janvier 2027 : motricité le mardi (11 séances), football mercredi et vendredi, une séance le mercredi 28 octobre pendant les vacances, trêve du 14 décembre au 5 janvier. Les séances existantes ne sont pas écrasées. Vérifie les dates proposées avant de confirmer.</p><button type="button" id="calAutoSeed">Préremplir le calendrier depuis le 1er septembre</button> <button type="button" id="calReset" class="cal-secondary">Réinitialiser les séances non réalisées</button><p id="calResetMessage" role="status" aria-live="polite"></p><p class="muted small">Réinitialiser replace les séances prévues ou reportées sur les créneaux de la programmation, sans toucher aux séances réalisées, annulées ou placées manuellement pendant les trêves.</p></div>
+<div class="cal-setup"><p><strong>Initialisation du planning 2026–2027</strong></p><p class="muted small">Du 1er septembre 2026 au 29 janvier 2027 : motricité le mardi (11 séances), football mercredi et vendredi, une séance le mercredi 28 octobre pendant les vacances, trêve du 14 décembre au 5 janvier. Les séances existantes ne sont pas écrasées. Vérifie les dates proposées avant de confirmer.</p><button type="button" id="calAutoSeed">Préremplir le calendrier depuis le 1er septembre</button> <button type="button" id="calReset" class="cal-secondary">Réinitialiser les séances non réalisées</button><p id="calResetMessage" role="status" aria-live="polite"></p><p class="muted small">Réinitialiser replace les séances prévues ou reportées sur les créneaux de la programmation, sans toucher aux séances réalisées, annulées ou à la séance ludique du 28 octobre. Les autres séances non réalisées placées par erreur pendant les vacances seront replacées.</p></div>
 <details class="cal-setup"><summary>Ajouter des séances au calendrier</summary>
 <p class="muted small">Choisis une séance et une première date. Tu peux ajouter manuellement une séance pendant les vacances ou la trêve. Pour plusieurs séances consécutives, les dates suivantes utilisent les créneaux habituels, hors trêves. Les séances déjà planifiées ne sont pas recréées.</p>
 <label for="calFirst">Première séance</label><select id="calFirst"></select>
@@ -534,7 +534,7 @@ document.getElementById('calReset').addEventListener('click',async()=>{
  if(football.length!==35||motricite.length!==11){feedback('Programmation inattendue. Réinitialisation annulée.',true);return}
  const {footballDates,motoDates}=originalCalendarSlots();
  const canonical=new Map([...football.map((s,i)=>[s.id,footballDates[i]]),...motricite.map((s,i)=>[s.id,motoDates[i]])]);
- const fixed=occurrenceRows.filter(o=>o.status==='realisee'||o.status==='annulee'||(o.planned_date&&isClubBreak(o.planned_date)));
+ const fixed=occurrenceRows.filter(o=>o.status==='realisee'||o.status==='annulee'||o.planned_date==='2026-10-28');
  const movable=occurrenceRows.filter(o=>!fixed.includes(o));
  const reserved=new Set(fixed.map(o=>o.planned_date).filter(Boolean));
  const updates=[];const used=new Set(reserved);
@@ -553,7 +553,7 @@ document.getElementById('calReset').addEventListener('click',async()=>{
  }
  if(!updates.length){feedback('Aucune séance à réinitialiser : les séances non réalisées sont déjà sur les dates prévues.');return}
  feedback(updates.length+' séance(s) à réinitialiser. Confirmation demandée…');
- if(!confirm('Réinitialiser '+updates.length+' séance(s) non réalisée(s) ?\\nLes séances reportées seront remises au statut Prévue.\\nLes séances réalisées, annulées et celles pendant les trêves resteront inchangées.')){feedback('Réinitialisation annulée.');return}
+ if(!confirm('Réinitialiser '+updates.length+' séance(s) non réalisée(s) ?\\nLes séances reportées seront remises au statut Prévue.\\nLes séances réalisées, annulées et la séance du 28 octobre resteront inchangées.')){feedback('Réinitialisation annulée.');return}
  try{
   // L'appel RPC est atomique ; le serveur refuse toute modification d'une séance réalisée.
   await playerRequest('rpc/u11_report_occurrences',{method:'POST',body:JSON.stringify({p_updates:updates})});
