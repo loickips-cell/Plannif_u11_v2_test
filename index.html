@@ -6,13 +6,14 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Planinf U11 V2 — Test de connexion</title>
 <style>
-:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#142b4b;background:#f3f6fa}*{box-sizing:border-box}body{margin:0}header{background:#142b4b;color:#fff;padding:23px 18px}.wrap{max-width:520px;margin:24px auto;padding:0 16px}.card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 12px #102a4514}h1{font-size:23px;margin:0}h2{font-size:19px}p{line-height:1.5}label{display:block;font-weight:650;font-size:14px;margin:16px 0 6px}input{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;border-radius:10px}button{background:#142b4b;color:white;border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:650;cursor:pointer;margin-top:16px}button:disabled{opacity:.6;cursor:wait}.muted{color:#607487}.ok{color:#137b55}.error{color:#a52c2c}#logout{background:#e8eff5;color:#142b4b}
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#142b4b;background:#f3f6fa}*{box-sizing:border-box}body{margin:0}header{background:#142b4b;color:#fff;padding:23px 18px}.wrap{max-width:1100px;margin:24px auto;padding:0 16px}.card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 12px #102a4514}h1{font-size:23px;margin:0}h2{font-size:19px}p{line-height:1.5}label{display:block;font-weight:650;font-size:14px;margin:16px 0 6px}input{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;border-radius:10px}button{background:#142b4b;color:white;border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:650;cursor:pointer;margin-top:16px}button:disabled{opacity:.6;cursor:wait}.muted{color:#607487}.ok{color:#137b55}.error{color:#a52c2c}#logout{background:#e8eff5;color:#142b4b}
 .players-panel{margin-top:18px}.player-line{padding:12px 0;border-top:1px solid #e5ebf1;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.player-line button{margin:0;padding:7px 10px;font-size:13px}.player-line .secondary{background:#e8eff5;color:#142b4b}.player-form{display:grid;grid-template-columns:1fr;gap:10px}.player-form label{margin-top:8px}.player-form input{min-width:0}.player-form button{grid-column:1/-1}.small{font-size:13px}.player-name{overflow-wrap:anywhere}@media(max-width:420px){.player-form{grid-template-columns:1fr}}
 select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;border-radius:10px;background:white;color:#142b4b}textarea{min-height:75px}.eval-panel{margin:18px 0}.eval-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.eval-grid label{margin-top:8px}.eval-actions{display:flex;gap:8px}.eval-actions button{flex:1}.eval-actions button.secondary{background:#e8eff5;color:#142b4b}.procedure{border-top:1px solid #e5ebf1;margin-top:14px;padding-top:12px}.procedure label{margin-top:7px}.hint{font-size:12px;color:#607487}@media(max-width:420px){.eval-grid{grid-template-columns:1fr}}
+.dash{margin:20px 0}.dash-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.metric{background:#edf3fa;border-radius:12px;padding:15px;cursor:pointer}.metric strong{font-size:25px;display:block}.dash-charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:15px}.dash-box{border:1px solid #e0e8f1;border-radius:12px;padding:14px;min-width:0}.dash-box h3{margin:0 0 10px;font-size:16px}.dash-svg{width:100%;height:auto;display:block;overflow:visible}.dash-svg circle,.dash-svg rect[data-key]{cursor:pointer}.dash-detail{margin-top:16px;border-top:1px solid #d8e2ec;padding-top:12px}.dash-detail button{margin:4px 5px 4px 0}.dash-entry{padding:10px;border-bottom:1px solid #e5ebf1}.dash-filter{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dash-filter label{margin:0}.dash-filter select{margin-top:5px}.metric:focus-visible,.dash-svg circle:focus-visible{outline:3px solid #ff9800}@media(max-width:700px){.dash-grid,.dash-charts{grid-template-columns:1fr 1fr}}@media(max-width:460px){.dash-grid,.dash-charts,.dash-filter{grid-template-columns:1fr}}[hidden]{display:none!important}
 </style>
 </head>
 <body>
-<header><div style="max-width:520px;margin:auto"><h1>⚽ Planinf U11 V2</h1><div>Consultation des séances Supabase</div></div></header>
+<header><div style="max-width:1100px;margin:auto"><h1>⚽ Planinf U11 V2</h1><div>Consultation des séances Supabase</div></div></header>
 <main class="wrap"><div class="card">
 <h2>Compte éducateur</h2>
 <p class="muted">Connecte-toi pour consulter les séances, gérer l'effectif et enregistrer des évaluations collectives et individuelles. La V1 n'est pas modifiée.</p>
@@ -56,6 +57,13 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <button id="saveIndividual" type="submit">Enregistrer l'évaluation individuelle</button>
 </form>
 <p id="evalStatus" role="status" aria-live="polite"></p>
+</section><section id="dashboard" class="card dash" hidden>
+<h2>📊 Tableau de bord U11</h2><p class="muted small">Données réelles issues des évaluations Supabase. Clique sur une courbe, une barre ou un indicateur pour consulter les évaluations d'origine.</p>
+<div class="dash-filter"><div><label for="dashMonth">Période</label><select id="dashMonth"><option value="">Tous les mois</option><option>Septembre</option><option>Octobre</option><option>Novembre</option><option>Décembre</option></select></div><div><label for="dashPlayer">Joueur</label><select id="dashPlayer"></select></div></div>
+<p id="dashStatus" role="status" aria-live="polite"></p><div id="dashMetrics" class="dash-grid"></div>
+<div class="dash-charts"><div class="dash-box"><h3>Évolution collective par procédé</h3><div id="collectiveChart"></div></div><div class="dash-box"><h3>Progression individuelle par critère</h3><div id="individualChart"></div></div><div class="dash-box"><h3>Moyenne par critère — équipe</h3><div id="criterionChart"></div></div><div class="dash-box"><h3>Répartition des notes</h3><div id="distributionChart"></div></div></div>
+<div id="dashDetail" class="dash-detail" hidden></div>
+<button id="refreshDashboard" type="button">Actualiser les bilans</button>
 </section><section id="sessions" hidden><h2>Séances U11</h2><p id="total"></p><div id="listing"></div></section></main>
 <script>
 'use strict';
@@ -190,7 +198,7 @@ document.getElementById('collectiveForm').addEventListener('submit',async e=>{
   const attendance=Number(document.getElementById('attendance').value);
   if(!Number.isInteger(attendance)||attendance<0||attendance>30)throw Error('Nombre de présents invalide.');
   await playerRequest('u11_session_evaluations',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({...common,attendance,ratings,comments,collective_notes:document.getElementById('collectiveNotes').value.trim(),next_steps:document.getElementById('nextSteps').value.trim()})});
-  evaluationMessage('Évaluation collective enregistrée dans Supabase.');
+  evaluationMessage('Évaluation collective enregistrée dans Supabase.');await loadDashboard();
  }catch(err){evaluationMessage(err.message,true)}finally{button.disabled=false}
 });
 document.getElementById('individualForm').addEventListener('submit',async e=>{
@@ -203,10 +211,109 @@ document.getElementById('individualForm').addEventListener('submit',async e=>{
   if(!criterion||![1,2,3,4].includes(score))throw Error('Choisis un critère et une note.');
   await playerRequest('u11_player_evaluations',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({...common,player_id:evalPlayer.value,criterion,score,observation:document.getElementById('individualObservation').value.trim()})});
   document.getElementById('criterion').value='';document.getElementById('individualScore').value='';document.getElementById('individualObservation').value='';
-  evaluationMessage('Évaluation individuelle enregistrée dans Supabase.');
+  evaluationMessage('Évaluation individuelle enregistrée dans Supabase.');await loadDashboard();
  }catch(err){evaluationMessage(err.message,true)}finally{button.disabled=false}
 });
 
+const dashPanel=document.getElementById('dashboard');
+const dashStatus=document.getElementById('dashStatus');
+const dashDetail=document.getElementById('dashDetail');
+let collectiveRows=[],individualRows=[];
+const months=['Septembre','Octobre','Novembre','Décembre'];
+const colors=['#1665c1','#169b69','#ed8a16','#8b45c8','#bd3d58'];
+const svgNS='http://www.w3.org/2000/svg';
+function svgNode(tag,attrs={},label=''){const el=document.createElementNS(svgNS,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));if(label)el.textContent=label;return el}
+function clearNode(id){const el=document.getElementById(id);el.replaceChildren();return el}
+function dashText(el,text){const p=document.createElement('p');p.className='muted small';p.textContent=text;el.append(p)}
+function monthOf(row){const session=sessionRows.find(x=>x.id===row.session_id);return session?.month_name||''}
+function inMonth(row){const month=document.getElementById('dashMonth').value;return !month||String(monthOf(row)).toLowerCase()===month.toLowerCase()}
+function sessionName(id){const s=sessionRows.find(x=>x.id===id);return s?(s.session_code+' — '+s.theme):'Séance non retrouvée'}
+function playerName(id){return playerRows.find(p=>p.id===id)?.display_name||'Joueur non retrouvé'}
+function scoreArray(row){return Array.isArray(row.ratings)?row.ratings.map(Number):[]}
+function average(vals){return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null}
+function fmt(n){return n===null?'—':n.toFixed(2).replace('.',',')}
+function svgChart(target,groups,clickHandler){
+ const host=clearNode(target);const W=470,H=245,left=39,right=12,top=18,bottom=48;
+ if(!groups.length||!groups.some(g=>g.values.length)){dashText(host,'Pas encore de données pour cette sélection.');return}
+ const svg=svgNode('svg',{viewBox:'0 0 '+W+' '+H,role:'img','aria-label':'Graphique interactif des notes sur 4',class:'dash-svg'});
+ const plotW=W-left-right,plotH=H-top-bottom;
+ for(let y=1;y<=4;y++){const py=top+(4-y)/3*plotH;svg.append(svgNode('line',{x1:left,y1:py,x2:W-right,y2:py,stroke:'#d8e3ee'}));svg.append(svgNode('text',{x:left-8,y:py+4,'text-anchor':'end',fill:'#50677e','font-size':12},String(y)))}
+ const keys=[...new Set(groups.flatMap(g=>g.values.map(v=>v.key)))];
+ const xpos=i=>left+(keys.length===1?plotW/2:i*plotW/(keys.length-1));
+ keys.forEach((k,i)=>svg.append(svgNode('text',{x:xpos(i),y:H-25,'text-anchor':'middle',fill:'#50677e','font-size':11},k.length>11?k.slice(0,10)+'…':k)));
+ groups.forEach((g,gi)=>{
+  const pts=g.values.map(v=>({...v,x:xpos(keys.indexOf(v.key)),y:top+(4-v.score)/3*plotH})).sort((a,b)=>a.x-b.x);
+  if(pts.length>1)svg.append(svgNode('polyline',{points:pts.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:colors[gi%colors.length],'stroke-width':2.8}));
+  for(const p of pts){const dot=svgNode('circle',{cx:p.x,cy:p.y,r:5,fill:colors[gi%colors.length],tabindex:0,role:'button','aria-label':g.name+' '+p.key+' '+fmt(p.score)});dot.addEventListener('click',()=>clickHandler(g.name,p.key));dot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();clickHandler(g.name,p.key)}});svg.append(dot)}
+ });
+ host.append(svg);const legend=document.createElement('p');legend.className='hint';legend.textContent=groups.map((g,i)=>'● '+g.name).join('   ');host.append(legend);
+}
+function barChart(target,entries,handler,max=4){
+ const host=clearNode(target);if(!entries.length){dashText(host,'Aucune donnée disponible.');return}
+ const svg=svgNode('svg',{viewBox:'0 0 470 240',class:'dash-svg',role:'img','aria-label':'Diagramme en barres interactif'});
+ const bw=370/entries.length;
+ entries.forEach((e,i)=>{
+  const h=Math.max(0,Math.min(1,e.value/max))*165;
+  const rect=svgNode('rect',{x:54+i*bw+8,y:190-h,width:Math.max(12,bw-18),height:h,rx:4,fill:colors[i%colors.length],'data-key':e.key,tabindex:0,role:'button','aria-label':e.key+' '+fmt(e.value)});
+  rect.addEventListener('click',()=>handler(e.key));rect.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();handler(e.key)}});
+  svg.append(rect);svg.append(svgNode('text',{x:54+i*bw+bw/2,y:181-h,'text-anchor':'middle','font-size':13,fill:'#142b4b'},fmt(e.value)));
+  svg.append(svgNode('text',{x:54+i*bw+bw/2,y:210,'text-anchor':'middle','font-size':11,fill:'#50677e'},e.key.length>13?e.key.slice(0,12)+'…':e.key));
+ });host.append(svg);
+}
+function openDetail(title,rows,kind){
+ dashDetail.replaceChildren();dashDetail.hidden=false;
+ const h=document.createElement('h3');h.textContent=title+' ('+rows.length+')';dashDetail.append(h);
+ if(!rows.length){dashText(dashDetail,'Aucune évaluation correspondante.');dashDetail.scrollIntoView({behavior:'smooth',block:'nearest'});return}
+ rows.sort((a,b)=>String(b.evaluation_date).localeCompare(String(a.evaluation_date)));
+ for(const row of rows.slice(0,100)){
+  const el=document.createElement('div');el.className='dash-entry';
+  const strong=document.createElement('strong');strong.textContent=(row.evaluation_date||'Sans date')+' · '+sessionName(row.session_id);el.append(strong);
+  const p=document.createElement('p');p.className='small';p.textContent=kind==='individual'?playerName(row.player_id)+' · '+row.criterion+' : '+row.score+'/4'+(row.observation?' — '+row.observation:''):'Présents : '+(row.attendance??'—')+' · Notes : '+scoreArray(row).join(' / ')+' · '+(row.collective_notes||'');el.append(p);
+  if(kind==='collective'){const note=document.createElement('p');note.className='muted small';note.textContent='Observations : '+(Array.isArray(row.comments)?row.comments.filter(Boolean).join(' · '):'')+' | Suite : '+(row.next_steps||'');el.append(note)}
+  dashDetail.append(el);
+ }
+ dashDetail.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function renderDashboard(){
+ const col=collectiveRows.filter(inMonth),ind=individualRows.filter(inMonth);
+ const chosen=document.getElementById('dashPlayer').value;
+ const playerInd=ind.filter(r=>!chosen||r.player_id===chosen);
+ const metrics=clearNode('dashMetrics');
+ const scored=col.flatMap(scoreArray).filter(n=>n>=1&&n<=4);
+ const measures=[
+ ['Séances évaluées',new Set(col.map(r=>r.session_id)).size+' / '+sessionRows.filter(s=>!document.getElementById('dashMonth').value||String(s.month_name).toLowerCase()===document.getElementById('dashMonth').value.toLowerCase()).length,()=>openDetail('Séances évaluées',col.slice(),'collective')],
+ ['Joueurs suivis',String(new Set(ind.map(r=>r.player_id)).size),()=>openDetail('Évaluations individuelles',ind.slice(),'individual')],
+ ['Moyenne collective',fmt(average(scored))+' / 4',()=>openDetail('Évaluations collectives',col.slice(),'collective')],
+ ['Évaluations individuelles',String(playerInd.length),()=>openDetail('Suivi individuel',playerInd.slice(),'individual')]
+ ];
+ for(const [label,value,action] of measures){const box=document.createElement('button');box.type='button';box.className='metric';box.style.textAlign='left';box.style.border='0';box.style.color='#142b4b';box.style.margin='0';const a=document.createElement('span');a.textContent=label;const b=document.createElement('strong');b.textContent=value;box.append(a,b);box.addEventListener('click',action);metrics.append(box)}
+ const monthKeys=months.filter(m=>!document.getElementById('dashMonth').value||m===document.getElementById('dashMonth').value);
+ const groups=procedureNames.map((name,i)=>({name,values:monthKeys.map(m=>{const vals=col.filter(r=>String(monthOf(r)).toLowerCase()===m.toLowerCase()).map(r=>scoreArray(r)[i]).filter(n=>n>=1&&n<=4);return {key:m.slice(0,4),score:average(vals)}}).filter(x=>x.score!==null)}));
+ svgChart('collectiveChart',groups,(name,key)=>openDetail(name+' — '+key,col.filter(r=>monthOf(r).slice(0,4)===key&&scoreArray(r)[procedureNames.indexOf(name)]>=1),'collective'));
+ const criteria=[...new Set(playerInd.map(r=>r.criterion))];
+ const pg=criteria.map(name=>({name,values:monthKeys.map(m=>{const vals=playerInd.filter(r=>r.criterion===name&&String(monthOf(r)).toLowerCase()===m.toLowerCase()).map(r=>Number(r.score)).filter(n=>n>=1&&n<=4);return {key:m.slice(0,4),score:average(vals)}}).filter(x=>x.score!==null)}));
+ svgChart('individualChart',pg,(name,key)=>openDetail(name+' — '+key,playerInd.filter(r=>r.criterion===name&&monthOf(r).slice(0,4)===key),'individual'));
+ barChart('criterionChart',[...new Set(ind.map(r=>r.criterion))].map(key=>({key,value:average(ind.filter(r=>r.criterion===key).map(r=>Number(r.score)).filter(n=>n>=1&&n<=4))||0})),key=>openDetail('Critère : '+key,ind.filter(r=>r.criterion===key),'individual'));
+ const all=ind.filter(r=>!chosen||r.player_id===chosen);
+ barChart('distributionChart',[1,2,3,4].map(n=>({key:String(n),value:all.filter(r=>Number(r.score)===n).length})),key=>openDetail('Note '+key,all.filter(r=>Number(r.score)===Number(key)),'individual'),Math.max(1,...[1,2,3,4].map(n=>all.filter(r=>Number(r.score)===n).length)));
+}
+async function loadDashboard(){
+ dashStatus.textContent='Chargement des bilans…';
+ try{
+  const [col,ind]=await Promise.all([
+   playerRequest('u11_session_evaluations?select=id,session_id,evaluation_date,attendance,ratings,comments,collective_notes,next_steps&order=evaluation_date.asc&limit=1000'),
+   playerRequest('u11_player_evaluations?select=id,session_id,player_id,evaluation_date,criterion,score,observation&order=evaluation_date.asc&limit=1000')
+  ]);
+  collectiveRows=col;individualRows=ind;
+  const sel=document.getElementById('dashPlayer');const old=sel.value;sel.replaceChildren(makeOption('','Tous les joueurs'));
+  for(const p of playerRows)sel.append(makeOption(p.id,p.display_name||'Sans nom'));
+  sel.value=old&&playerRows.some(p=>p.id===old)?old:'';
+  renderDashboard();dashPanel.hidden=false;dashStatus.textContent='Bilans actualisés · '+col.length+' évaluations collectives · '+ind.length+' individuelles.';
+ }catch(e){dashPanel.hidden=false;dashStatus.textContent='Impossible de lire les bilans : '+e.message;dashStatus.className='error'}
+}
+document.getElementById('dashMonth').addEventListener('change',()=>{dashDetail.hidden=true;renderDashboard()});
+document.getElementById('dashPlayer').addEventListener('change',()=>{dashDetail.hidden=true;renderDashboard()});
+document.getElementById('refreshDashboard').addEventListener('click',loadDashboard);
 const sessions=document.getElementById('sessions');
 const listing=document.getElementById('listing');
 const total=document.getElementById('total');
@@ -261,13 +368,13 @@ const count=await showSessions();
 form.hidden=true;logout.hidden=false;
 message('Connexion réussie ! '+count+' séances affichées.');
 try{await loadPlayers()}catch(err){playersPanel.hidden=false;playerMessage('Lecture des joueurs impossible : '+err.message,true)}
-refreshEvaluationChoices();setEvalMode('collective');
+refreshEvaluationChoices();setEvalMode('collective');await loadDashboard();
 }catch(err){message(err.message||'Erreur de connexion.',true)}
 finally{submit.disabled=false}
 });
 logout.addEventListener('click',async()=>{
 if(accessToken){try{await fetch(BASE+'/auth/v1/logout',{method:'POST',headers:{'apikey':PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken}})}catch(_){}}
-accessToken=null;form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();playersPanel.hidden=true;playerList.replaceChildren();evalPanel.hidden=true;sessionRows=[];playerRows=[];evaluationMessage('');playerMessage('');message('Déconnecté.');
+accessToken=null;form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();playersPanel.hidden=true;playerList.replaceChildren();evalPanel.hidden=true;dashPanel.hidden=true;dashDetail.hidden=true;collectiveRows=[];individualRows=[];sessionRows=[];playerRows=[];evaluationMessage('');playerMessage('');message('Déconnecté.');
 });
 </script>
 </body></html>
