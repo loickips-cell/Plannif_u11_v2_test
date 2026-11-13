@@ -10,11 +10,12 @@
 .players-panel{margin-top:18px}.player-line{padding:12px 0;border-top:1px solid #e5ebf1;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.player-line button{margin:0;padding:7px 10px;font-size:13px}.player-line .secondary{background:#e8eff5;color:#142b4b}.player-form{display:grid;grid-template-columns:1fr;gap:10px}.player-form label{margin-top:8px}.player-form input{min-width:0}.player-form button{grid-column:1/-1}.small{font-size:13px}.player-name{overflow-wrap:anywhere}@media(max-width:420px){.player-form{grid-template-columns:1fr}}
 select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;border-radius:10px;background:white;color:#142b4b}textarea{min-height:75px}.eval-panel{margin:18px 0}.eval-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.eval-grid label{margin-top:8px}.eval-actions{display:flex;gap:8px}.eval-actions button{flex:1}.eval-actions button.secondary{background:#e8eff5;color:#142b4b}.procedure{border-top:1px solid #e5ebf1;margin-top:14px;padding-top:12px}.procedure label{margin-top:7px}.hint{font-size:12px;color:#607487}@media(max-width:420px){.eval-grid{grid-template-columns:1fr}}
 .dash{margin:20px 0}.dash-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.metric{background:#edf3fa;border-radius:12px;padding:15px;cursor:pointer}.metric strong{font-size:25px;display:block}.dash-charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:15px}.dash-box{border:1px solid #e0e8f1;border-radius:12px;padding:14px;min-width:0}.dash-box h3{margin:0 0 10px;font-size:16px}.dash-svg{width:100%;height:auto;display:block;overflow:visible}.dash-svg circle,.dash-svg rect[data-key]{cursor:pointer}.dash-detail{margin-top:16px;border-top:1px solid #d8e2ec;padding-top:12px}.dash-detail button{margin:4px 5px 4px 0}.dash-entry{padding:10px;border-bottom:1px solid #e5ebf1}.dash-filter{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dash-filter label{margin:0}.dash-filter select{margin-top:5px}.metric:focus-visible,.dash-svg circle:focus-visible{outline:3px solid #ff9800}@media(max-width:700px){.dash-grid,.dash-charts{grid-template-columns:1fr 1fr}}@media(max-width:460px){.dash-grid,.dash-charts,.dash-filter{grid-template-columns:1fr}}[hidden]{display:none!important}
+.app-nav{display:flex;gap:7px;overflow-x:auto;padding:12px 0;position:sticky;top:0;background:#f3f6fa;z-index:10}.app-nav button{margin:0;white-space:nowrap;background:#e4edf7;color:#142b4b;font-size:14px;padding:11px 14px}.app-nav button[aria-current="page"]{background:#142b4b;color:white}.app-section{margin-top:15px}.wrap{max-width:1100px}@media(max-width:600px){.app-nav{margin:0 -16px;padding:10px 16px}.app-nav button{font-size:13px;padding:10px 12px}}
 </style>
 </head>
 <body>
 <header><div style="max-width:1100px;margin:auto"><h1>⚽ Planinf U11 V2</h1><div>Consultation des séances Supabase</div></div></header>
-<main class="wrap"><div class="card">
+<main class="wrap"><div class="card" id="accountPanel">
 <h2>Compte éducateur</h2>
 <p class="muted">Connecte-toi pour consulter les séances, gérer l'effectif et enregistrer des évaluations collectives et individuelles. La V1 n'est pas modifiée.</p>
 <form id="login">
@@ -25,7 +26,13 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <p id="status" role="status" aria-live="polite"></p>
 <button id="logout" type="button" hidden>Se déconnecter</button>
 <p class="muted"><small>Ne partage pas ton mot de passe. Le jeton de test est conservé uniquement en mémoire de cette page et disparaît à sa fermeture ou à son rechargement.</small></p>
-</div><section id="players" class="card players-panel" hidden>
+</div><nav id="appNav" class="app-nav" aria-label="Navigation de l'application" hidden>
+<button type="button" data-view="home" aria-current="page">🏠 Accueil</button>
+<button type="button" data-view="sessions">📅 Séances</button>
+<button type="button" data-view="players">👥 Effectif</button>
+<button type="button" data-view="evaluation">📝 Évaluations</button>
+<button type="button" data-view="dashboard">📊 Bilans</button>
+</nav><section id="home" class="card app-section" hidden><h2>Accueil — Planinf U11</h2><p>Bienvenue dans ton espace éducateur. Retrouve les séances, l'effectif, les évaluations et les bilans depuis les onglets ci-dessus.</p><div id="homeStats" class="dash-grid"></div></section><section id="players" class="card players-panel app-section" hidden>
 <h2>Effectif U11</h2>
 <p class="muted small">Les joueurs sont enregistrés dans ton espace éducateur Supabase.</p>
 <form id="playerForm" class="player-form">
@@ -34,7 +41,7 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 </form>
 <p id="playerStatus" role="status" aria-live="polite"></p>
 <div id="playerList"></div>
-</section><section id="evaluation" class="card eval-panel" hidden>
+</section><section id="evaluation" class="card eval-panel app-section" hidden>
 <h2>Évaluations</h2>
 <div class="eval-actions"><button id="collectiveTab" type="button">Collective</button><button id="individualTab" type="button" class="secondary">Individuelle</button></div>
 <p class="hint">Notes : 1 difficile · 2 à renforcer · 3 satisfaisant · 4 maîtrisé</p>
@@ -57,18 +64,41 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <button id="saveIndividual" type="submit">Enregistrer l'évaluation individuelle</button>
 </form>
 <p id="evalStatus" role="status" aria-live="polite"></p>
-</section><section id="dashboard" class="card dash" hidden>
+</section><section id="dashboard" class="card dash app-section" hidden>
 <h2>📊 Tableau de bord U11</h2><p class="muted small">Données réelles issues des évaluations Supabase. Clique sur une courbe, une barre ou un indicateur pour consulter les évaluations d'origine.</p>
 <div class="dash-filter"><div><label for="dashMonth">Période</label><select id="dashMonth"><option value="">Tous les mois</option><option>Septembre</option><option>Octobre</option><option>Novembre</option><option>Décembre</option></select></div><div><label for="dashPlayer">Joueur</label><select id="dashPlayer"></select></div></div>
 <p id="dashStatus" role="status" aria-live="polite"></p><div id="dashMetrics" class="dash-grid"></div>
 <div class="dash-charts"><div class="dash-box"><h3>Évolution collective par procédé</h3><div id="collectiveChart"></div></div><div class="dash-box"><h3>Progression individuelle par critère</h3><div id="individualChart"></div></div><div class="dash-box"><h3>Moyenne par critère — équipe</h3><div id="criterionChart"></div></div><div class="dash-box"><h3>Répartition des notes</h3><div id="distributionChart"></div></div></div>
 <div id="dashDetail" class="dash-detail" hidden></div>
 <button id="refreshDashboard" type="button">Actualiser les bilans</button>
-</section><section id="sessions" hidden><h2>Séances U11</h2><p id="total"></p><div id="listing"></div></section></main>
+</section><section id="sessions" class="app-section" hidden><h2>Séances U11</h2><p id="total"></p><div id="listing"></div></section></main>
 <script>
 'use strict';
 const BASE='https://xawjslbqkycnftfzbiyt.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_qNg9bBTU4KzptETdQN63ow_6OVs8-OD';
+const nav=document.getElementById('appNav');
+const viewNames=['home','sessions','players','evaluation','dashboard'];
+let activeView='home';
+function showView(name){
+ if(!viewNames.includes(name))return;
+ activeView=name;
+ for(const id of viewNames)document.getElementById(id).hidden=id!==name;
+ for(const btn of nav.querySelectorAll('button[data-view]'))btn.setAttribute('aria-current',btn.dataset.view===name?'page':'false');
+ window.scrollTo({top:0,behavior:'instant'});
+}
+nav.addEventListener('click',e=>{const btn=e.target.closest('button[data-view]');if(btn)showView(btn.dataset.view)});
+function updateHome(){
+ const host=document.getElementById('homeStats');host.replaceChildren();
+ for(const [label,value,view] of [
+  ['Séances programmées',sessionRows.length,'sessions'],
+  ['Joueurs actifs',playerRows.filter(p=>p.active).length,'players'],
+  ['Évaluations collectives',collectiveRows.length,'dashboard'],
+  ['Évaluations individuelles',individualRows.length,'dashboard']
+ ]){
+  const btn=document.createElement('button');btn.type='button';btn.className='metric';btn.style.margin='0';btn.style.color='#142b4b';btn.style.textAlign='left';btn.style.border='0';
+  const small=document.createElement('span');small.textContent=label;const big=document.createElement('strong');big.textContent=String(value);btn.append(small,big);btn.addEventListener('click',()=>showView(view));host.append(btn);
+ }
+}
 const form=document.getElementById('login');
 const status=document.getElementById('status');
 const submit=document.getElementById('submit');
@@ -110,19 +140,19 @@ async function loadPlayers(){
    if(name===null)return;
    const clean=name.trim();if(!clean||clean.length>80){playerMessage('Nom invalide.',true);return}
    edit.disabled=true;
-   try{await playerRequest('u11_players?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',body:JSON.stringify({display_name:clean})});await loadPlayers();refreshEvaluationChoices();playerMessage('Joueur mis à jour.')}
+   try{await playerRequest('u11_players?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',body:JSON.stringify({display_name:clean})});await loadPlayers();refreshEvaluationChoices();updateHome();playerMessage('Joueur mis à jour.')}
    catch(e){playerMessage(e.message,true)}finally{edit.disabled=false}
   });
   const toggle=document.createElement('button');toggle.type='button';toggle.className='secondary';toggle.textContent=p.active?'Désactiver':'Réactiver';
   toggle.addEventListener('click',async()=>{
    if(!confirm((p.active?'Désactiver ':'Réactiver ')+(p.display_name||p.player_code)+' ?'))return;
    toggle.disabled=true;
-   try{await playerRequest('u11_players?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',body:JSON.stringify({active:!p.active})});await loadPlayers();refreshEvaluationChoices();playerMessage('Statut mis à jour.')}
+   try{await playerRequest('u11_players?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',body:JSON.stringify({active:!p.active})});await loadPlayers();refreshEvaluationChoices();updateHome();playerMessage('Statut mis à jour.')}
    catch(e){playerMessage(e.message,true)}finally{toggle.disabled=false}
   });
   controls.append(edit,toggle);line.append(label,controls);playerList.append(line);
  }
- playersPanel.hidden=false;
+ if(activeView==='players')playersPanel.hidden=false;
 }
 playerForm.addEventListener('submit',async e=>{
  e.preventDefault();if(!accessToken)return;
@@ -132,7 +162,7 @@ playerForm.addEventListener('submit',async e=>{
  savePlayer.disabled=true;playerMessage('Enregistrement…');
  try{
   await playerRequest('u11_players',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({player_code:code,display_name:name,active:true})});
-  playerForm.reset();await loadPlayers();refreshEvaluationChoices();playerMessage('Joueur ajouté avec succès.');
+  playerForm.reset();await loadPlayers();refreshEvaluationChoices();updateHome();playerMessage('Joueur ajouté avec succès.');
  }catch(err){playerMessage(err.message||'Enregistrement impossible.',true)}
  finally{savePlayer.disabled=false}
 });
@@ -166,7 +196,7 @@ function refreshEvaluationChoices(){
   const note=document.createElement('textarea');note.name='comment'+i;
   div.append(h,scoreLabel,score,noteLabel,note);target.append(div);
  }
- evalPanel.hidden=false;
+ if(activeView==='evaluation')evalPanel.hidden=false;
 }
 function setEvalMode(mode){
  const collective=mode==='collective';
@@ -308,7 +338,7 @@ async function loadDashboard(){
   const sel=document.getElementById('dashPlayer');const old=sel.value;sel.replaceChildren(makeOption('','Tous les joueurs'));
   for(const p of playerRows)sel.append(makeOption(p.id,p.display_name||'Sans nom'));
   sel.value=old&&playerRows.some(p=>p.id===old)?old:'';
-  renderDashboard();dashPanel.hidden=false;dashStatus.textContent='Bilans actualisés · '+col.length+' évaluations collectives · '+ind.length+' individuelles.';
+  renderDashboard();if(activeView==='dashboard')dashPanel.hidden=false;updateHome();dashStatus.textContent='Bilans actualisés · '+col.length+' évaluations collectives · '+ind.length+' individuelles.';
  }catch(e){dashPanel.hidden=false;dashStatus.textContent='Impossible de lire les bilans : '+e.message;dashStatus.className='error'}
 }
 document.getElementById('dashMonth').addEventListener('change',()=>{dashDetail.hidden=true;renderDashboard()});
@@ -339,7 +369,7 @@ async function showSessions(){
   }
   listing.append(block);
  }
- sessions.hidden=false;
+ if(activeView==='sessions')sessions.hidden=false;
  return data.length;
 }
 function message(text,isError=false){status.textContent=text;status.className=isError?'error':'ok'}
@@ -366,15 +396,15 @@ cache:'no-store'
 if(!check.ok){const code=check.status;throw Error('Connexion réussie, mais lecture des séances refusée (HTTP '+code+').');}
 const count=await showSessions();
 form.hidden=true;logout.hidden=false;
-message('Connexion réussie ! '+count+' séances affichées.');
+message('Connexion réussie ! '+count+' séances disponibles.');
 try{await loadPlayers()}catch(err){playersPanel.hidden=false;playerMessage('Lecture des joueurs impossible : '+err.message,true)}
-refreshEvaluationChoices();setEvalMode('collective');await loadDashboard();
+refreshEvaluationChoices();setEvalMode('collective');await loadDashboard();nav.hidden=false;updateHome();showView('home');
 }catch(err){message(err.message||'Erreur de connexion.',true)}
 finally{submit.disabled=false}
 });
 logout.addEventListener('click',async()=>{
 if(accessToken){try{await fetch(BASE+'/auth/v1/logout',{method:'POST',headers:{'apikey':PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken}})}catch(_){}}
-accessToken=null;form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();playersPanel.hidden=true;playerList.replaceChildren();evalPanel.hidden=true;dashPanel.hidden=true;dashDetail.hidden=true;collectiveRows=[];individualRows=[];sessionRows=[];playerRows=[];evaluationMessage('');playerMessage('');message('Déconnecté.');
+accessToken=null;nav.hidden=true;document.getElementById('home').hidden=true;activeView='home';form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();playersPanel.hidden=true;playerList.replaceChildren();evalPanel.hidden=true;dashPanel.hidden=true;dashDetail.hidden=true;collectiveRows=[];individualRows=[];sessionRows=[];playerRows=[];evaluationMessage('');playerMessage('');message('Déconnecté.');
 });
 </script>
 </body></html>
