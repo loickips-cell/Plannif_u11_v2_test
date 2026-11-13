@@ -65,7 +65,7 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 </form>
 <p id="evalStatus" role="status" aria-live="polite"></p>
 </section><section id="dashboard" class="card dash app-section" hidden>
-<h2>📊 Tableau de bord U11</h2><p class="muted small">Données réelles issues des évaluations Supabase. Clique sur une courbe, une barre ou un indicateur pour consulter les évaluations d'origine.</p>
+<h2>📊 Tableau de bord U11</h2><p class="muted small">Les filtres mensuels utilisent la date réelle de réalisation indiquée dans chaque évaluation, et non le mois programmé. Clique sur une courbe, une barre ou un indicateur pour consulter les évaluations d'origine.</p>
 <div class="dash-filter"><div><label for="dashMonth">Période</label><select id="dashMonth"><option value="">Tous les mois</option><option>Septembre</option><option>Octobre</option><option>Novembre</option><option>Décembre</option></select></div><div><label for="dashPlayer">Joueur</label><select id="dashPlayer"></select></div></div>
 <p id="dashStatus" role="status" aria-live="polite"></p><div id="dashMetrics" class="dash-grid"></div>
 <div class="dash-charts"><div class="dash-box"><h3>Évolution collective par procédé</h3><div id="collectiveChart"></div></div><div class="dash-box"><h3>Progression individuelle par critère</h3><div id="individualChart"></div></div><div class="dash-box"><h3>Moyenne par critère — équipe</h3><div id="criterionChart"></div></div><div class="dash-box"><h3>Répartition des notes</h3><div id="distributionChart"></div></div></div>
@@ -256,7 +256,13 @@ const svgNS='http://www.w3.org/2000/svg';
 function svgNode(tag,attrs={},label=''){const el=document.createElementNS(svgNS,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));if(label)el.textContent=label;return el}
 function clearNode(id){const el=document.getElementById(id);el.replaceChildren();return el}
 function dashText(el,text){const p=document.createElement('p');p.className='muted small';p.textContent=text;el.append(p)}
-function monthOf(row){const session=sessionRows.find(x=>x.id===row.session_id);return session?.month_name||''}
+function monthOf(row){
+ // Les bilans sont regroupés par date de réalisation, jamais par mois programmé.
+ const date=String(row.evaluation_date||'');
+ const match=/^\d{4}-(\d{2})-\d{2}$/.exec(date);
+ if(!match)return '';
+ return ({'09':'Septembre','10':'Octobre','11':'Novembre','12':'Décembre'})[match[1]]||'';
+}
 function inMonth(row){const month=document.getElementById('dashMonth').value;return !month||String(monthOf(row)).toLowerCase()===month.toLowerCase()}
 function sessionName(id){const s=sessionRows.find(x=>x.id===id);return s?(s.session_code+' — '+s.theme):'Séance non retrouvée'}
 function playerName(id){return playerRows.find(p=>p.id===id)?.display_name||'Joueur non retrouvé'}
@@ -312,7 +318,7 @@ function renderDashboard(){
  const metrics=clearNode('dashMetrics');
  const scored=col.flatMap(scoreArray).filter(n=>n>=1&&n<=4);
  const measures=[
- ['Séances évaluées',new Set(col.map(r=>r.session_id)).size+' / '+sessionRows.filter(s=>!document.getElementById('dashMonth').value||String(s.month_name).toLowerCase()===document.getElementById('dashMonth').value.toLowerCase()).length,()=>openDetail('Séances évaluées',col.slice(),'collective')],
+ ['Séances évaluées',String(new Set(col.map(r=>r.session_id)).size)+(document.getElementById('dashMonth').value?' sur la période':' / '+sessionRows.length+' programmées'),()=>openDetail('Séances évaluées',col.slice(),'collective')],
  ['Joueurs suivis',String(new Set(ind.map(r=>r.player_id)).size),()=>openDetail('Évaluations individuelles',ind.slice(),'individual')],
  ['Moyenne collective',fmt(average(scored))+' / 4',()=>openDetail('Évaluations collectives',col.slice(),'collective')],
  ['Évaluations individuelles',String(playerInd.length),()=>openDetail('Suivi individuel',playerInd.slice(),'individual')]
