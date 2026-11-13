@@ -10,12 +10,18 @@
 .players-panel{margin-top:18px}.player-line{padding:12px 0;border-top:1px solid #e5ebf1;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.player-line button{margin:0;padding:7px 10px;font-size:13px}.player-line .secondary{background:#e8eff5;color:#142b4b}.player-form{display:grid;grid-template-columns:1fr;gap:10px}.player-form label{margin-top:8px}.player-form input{min-width:0}.player-form button{grid-column:1/-1}.small{font-size:13px}.player-name{overflow-wrap:anywhere}@media(max-width:420px){.player-form{grid-template-columns:1fr}}
 select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;border-radius:10px;background:white;color:#142b4b}textarea{min-height:75px}.eval-panel{margin:18px 0}.eval-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.eval-grid label{margin-top:8px}.eval-actions{display:flex;gap:8px}.eval-actions button{flex:1}.eval-actions button.secondary{background:#e8eff5;color:#142b4b}.procedure{border-top:1px solid #e5ebf1;margin-top:14px;padding-top:12px}.procedure label{margin-top:7px}.hint{font-size:12px;color:#607487}@media(max-width:420px){.eval-grid{grid-template-columns:1fr}}
 .dash{margin:20px 0}.dash-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.metric{background:#edf3fa;border-radius:12px;padding:15px;cursor:pointer}.metric strong{font-size:25px;display:block}.dash-charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:15px}.dash-box{border:1px solid #e0e8f1;border-radius:12px;padding:14px;min-width:0}.dash-box h3{margin:0 0 10px;font-size:16px}.dash-svg{width:100%;height:auto;display:block;overflow:visible}.dash-svg circle,.dash-svg rect[data-key]{cursor:pointer}.dash-detail{margin-top:16px;border-top:1px solid #d8e2ec;padding-top:12px}.dash-detail button{margin:4px 5px 4px 0}.dash-entry{padding:10px;border-bottom:1px solid #e5ebf1}.dash-filter{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dash-filter label{margin:0}.dash-filter select{margin-top:5px}.metric:focus-visible,.dash-svg circle:focus-visible{outline:3px solid #ff9800}@media(max-width:700px){.dash-grid,.dash-charts{grid-template-columns:1fr 1fr}}@media(max-width:460px){.dash-grid,.dash-charts,.dash-filter{grid-template-columns:1fr}}[hidden]{display:none!important}
-.app-nav{display:flex;gap:7px;overflow-x:auto;padding:12px 0;position:sticky;top:0;background:#f3f6fa;z-index:10}.app-nav button{margin:0;white-space:nowrap;background:#e4edf7;color:#142b4b;font-size:14px;padding:11px 14px}.app-nav button[aria-current="page"]{background:#142b4b;color:white}.app-section{margin-top:15px}.wrap{max-width:1100px}@media(max-width:600px){.app-nav{margin:0 -16px;padding:10px 16px}.app-nav button{font-size:13px;padding:10px 12px}}
+.app-nav{display:flex;gap:7px;overflow-x:auto;padding:12px 0;position:sticky;top:0;background:#f3f6fa;z-index:10}.app-nav button{margin:0;white-space:nowrap;background:#e4edf7;color:#142b4b;font-size:14px;padding:11px 14px}.app-nav button[aria-current="page"]{background:#142b4b;color:white}.app-nav #logout{margin:0 0 0 auto;background:#d8e3ef;color:#142b4b}.app-section{margin-top:15px}.wrap{max-width:1100px}@media(max-width:600px){.app-nav{margin:0 -16px;padding:10px 16px}.app-nav button{font-size:13px;padding:10px 12px}}
 </style>
 </head>
 <body>
 <header><div style="max-width:1100px;margin:auto"><h1>⚽ Planinf U11 V2</h1><div>Consultation des séances Supabase</div></div></header>
-<main class="wrap"><div class="card" id="accountPanel">
+<main class="wrap"><nav id="appNav" class="app-nav" aria-label="Navigation de l'application" hidden>
+<button type="button" data-view="home" aria-current="page">🏠 Accueil</button>
+<button type="button" data-view="sessions">📅 Séances</button>
+<button type="button" data-view="players">👥 Effectif</button>
+<button type="button" data-view="evaluation">📝 Évaluations</button>
+<button type="button" data-view="dashboard">📊 Bilans</button>
+</nav><div class="card" id="accountPanel">
 <h2>Compte éducateur</h2>
 <p class="muted">Connecte-toi pour consulter les séances, gérer l'effectif et enregistrer des évaluations collectives et individuelles. La V1 n'est pas modifiée.</p>
 <form id="login">
@@ -26,13 +32,7 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <p id="status" role="status" aria-live="polite"></p>
 <button id="logout" type="button" hidden>Se déconnecter</button>
 <p class="muted"><small>Ne partage pas ton mot de passe. Le jeton de test est conservé uniquement en mémoire de cette page et disparaît à sa fermeture ou à son rechargement.</small></p>
-</div><nav id="appNav" class="app-nav" aria-label="Navigation de l'application" hidden>
-<button type="button" data-view="home" aria-current="page">🏠 Accueil</button>
-<button type="button" data-view="sessions">📅 Séances</button>
-<button type="button" data-view="players">👥 Effectif</button>
-<button type="button" data-view="evaluation">📝 Évaluations</button>
-<button type="button" data-view="dashboard">📊 Bilans</button>
-</nav><section id="home" class="card app-section" hidden><h2>Accueil — Planinf U11</h2><p>Bienvenue dans ton espace éducateur. Retrouve les séances, l'effectif, les évaluations et les bilans depuis les onglets ci-dessus.</p><div id="homeStats" class="dash-grid"></div></section><section id="players" class="card players-panel app-section" hidden>
+</div><section id="home" class="card app-section" hidden><h2>Accueil — Planinf U11</h2><p>Bienvenue dans ton espace éducateur. Retrouve les séances, l'effectif, les évaluations et les bilans depuis les onglets ci-dessus.</p><div id="homeStats" class="dash-grid"></div></section><section id="players" class="card players-panel app-section" hidden>
 <h2>Effectif U11</h2>
 <p class="muted small">Les joueurs sont enregistrés dans ton espace éducateur Supabase.</p>
 <form id="playerForm" class="player-form">
@@ -77,6 +77,7 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 const BASE='https://xawjslbqkycnftfzbiyt.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_qNg9bBTU4KzptETdQN63ow_6OVs8-OD';
 const nav=document.getElementById('appNav');
+const accountPanel=document.getElementById('accountPanel');
 const viewNames=['home','sessions','players','evaluation','dashboard'];
 let activeView='home';
 function showView(name){
@@ -84,7 +85,7 @@ function showView(name){
  activeView=name;
  for(const id of viewNames)document.getElementById(id).hidden=id!==name;
  for(const btn of nav.querySelectorAll('button[data-view]'))btn.setAttribute('aria-current',btn.dataset.view===name?'page':'false');
- window.scrollTo({top:0,behavior:'instant'});
+ window.scrollTo(0,0);
 }
 nav.addEventListener('click',e=>{const btn=e.target.closest('button[data-view]');if(btn)showView(btn.dataset.view)});
 function updateHome(){
@@ -395,16 +396,16 @@ cache:'no-store'
 });
 if(!check.ok){const code=check.status;throw Error('Connexion réussie, mais lecture des séances refusée (HTTP '+code+').');}
 const count=await showSessions();
-form.hidden=true;logout.hidden=false;
+form.hidden=true;logout.hidden=false;nav.append(logout);accountPanel.hidden=true;nav.hidden=false;showView('home');
 message('Connexion réussie ! '+count+' séances disponibles.');
 try{await loadPlayers()}catch(err){playersPanel.hidden=false;playerMessage('Lecture des joueurs impossible : '+err.message,true)}
-refreshEvaluationChoices();setEvalMode('collective');await loadDashboard();nav.hidden=false;updateHome();showView('home');
+refreshEvaluationChoices();setEvalMode('collective');updateHome();await loadDashboard();updateHome();
 }catch(err){message(err.message||'Erreur de connexion.',true)}
 finally{submit.disabled=false}
 });
 logout.addEventListener('click',async()=>{
 if(accessToken){try{await fetch(BASE+'/auth/v1/logout',{method:'POST',headers:{'apikey':PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken}})}catch(_){}}
-accessToken=null;nav.hidden=true;document.getElementById('home').hidden=true;activeView='home';form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();playersPanel.hidden=true;playerList.replaceChildren();evalPanel.hidden=true;dashPanel.hidden=true;dashDetail.hidden=true;collectiveRows=[];individualRows=[];sessionRows=[];playerRows=[];evaluationMessage('');playerMessage('');message('Déconnecté.');
+accessToken=null;nav.hidden=true;accountPanel.hidden=false;document.getElementById('home').hidden=true;activeView='home';form.hidden=false;logout.hidden=true;sessions.hidden=true;listing.replaceChildren();playersPanel.hidden=true;playerList.replaceChildren();evalPanel.hidden=true;dashPanel.hidden=true;dashDetail.hidden=true;collectiveRows=[];individualRows=[];sessionRows=[];playerRows=[];evaluationMessage('');playerMessage('');message('Déconnecté.');
 });
 </script>
 </body></html>
