@@ -81,7 +81,7 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <div id="calEditor" hidden class="cal-editor"></div>
 <div class="cal-setup"><p><strong>Initialisation du planning 2026–2027</strong></p><p class="muted small">Du 1er septembre 2026 au 29 janvier 2027 : motricité le mardi (11 séances), football mercredi et vendredi, une séance le mercredi 28 octobre pendant les vacances, trêve du 14 décembre au 5 janvier. Les séances existantes ne sont pas écrasées. Vérifie les dates proposées avant de confirmer.</p><button type="button" id="calAutoSeed">Préremplir le calendrier depuis le 1er septembre</button></div>
 <details class="cal-setup"><summary>Ajouter des séances au calendrier</summary>
-<p class="muted small">Choisis une séance et une première date. Pour plusieurs séances consécutives, le calendrier utilisera les prochains créneaux d'entraînement : mardi, mercredi et vendredi. Les séances déjà planifiées ne sont pas recréées.</p>
+<p class="muted small">Choisis une séance et une première date. Tu peux ajouter manuellement une séance pendant les vacances ou la trêve. Pour plusieurs séances consécutives, les dates suivantes utilisent les créneaux habituels, hors trêves. Les séances déjà planifiées ne sont pas recréées.</p>
 <label for="calFirst">Première séance</label><select id="calFirst"></select>
 <label for="calStart">Première date</label><input type="date" id="calStart">
 <label for="calCount">Nombre de séances à planifier</label><input type="number" id="calCount" min="1" max="46" value="1">
@@ -384,7 +384,7 @@ function nextTraining(date){const d=parseDay(date);do{d.setDate(d.getDate()+1)}w
 function onTraining(date){return trainingDays.includes(parseDay(date).getDay())}
 // Calendrier du club : vacances de Toussaint et trêve hivernale.
 function isClubBreak(date){
- return (date>='2026-10-19'&&date<='2026-11-02'&&date!=='2026-10-28')||
+ return (date>='2026-10-19'&&date<='2026-11-02')||
         (date>='2026-12-14'&&date<='2027-01-05');
 }
 function isEligibleSessionDate(date,sessionId){
@@ -393,7 +393,6 @@ function isEligibleSessionDate(date,sessionId){
  if(!session)return false;
  const day=parseDay(date).getDay();
  if(session.session_type==='motricite')return day===2;
- if(date==='2026-10-28')return day===3;
  return day===3||day===5;
 }
 function nextEligibleSessionDate(after,sessionId,used){
@@ -466,13 +465,13 @@ function reportOccurrence(x){
  const input=document.createElement('input');input.id='calNewDate';input.type='date';input.value=x.planned_date||isoDate(new Date());calEditor.append(input);
  const preview=calText('div','');calEditor.append(preview);
  const all=occurrenceRows.filter(o=>o.id!==x.id&&o.status!=='realisee'&&o.status!=='annulee'&&o.planned_date).sort((a,b)=>a.planned_date.localeCompare(b.planned_date));
- const later=all.filter(o=>o.planned_date>=(x.planned_date||'9999-12-31'));
+ const later=all.filter(o=>o.planned_date>=(x.planned_date||'9999-12-31')&&!isClubBreak(o.planned_date));
  function proposal(){
   preview.replaceChildren();const target=input.value;
   if(!isEligibleSessionDate(target,x.session_id)||!x.planned_date||target<=x.planned_date){
    preview.append(calText('p','Choisis une date postérieure hors vacances/trêve : mardi pour la motricité, mercredi ou vendredi pour le football.','error small'));return null;
   }
-  const fixed=new Set(occurrenceRows.filter(o=>o.id!==x.id&&(o.status==='realisee'||o.status==='annulee')&&o.planned_date).map(o=>o.planned_date));
+  const fixed=new Set(occurrenceRows.filter(o=>o.id!==x.id&&(o.status==='realisee'||o.status==='annulee'||isClubBreak(o.planned_date))&&o.planned_date).map(o=>o.planned_date));
   const before=new Set(all.filter(o=>o.planned_date<x.planned_date).map(o=>o.planned_date));
   const updates=[{id:x.id,planned_date:target,status:'reportee'}];const used=new Set([...fixed,...before,target]);
   if(fixed.has(target)||before.has(target)){preview.append(calText('p','Ce créneau est déjà occupé par une séance antérieure ou figée.','error small'));return null}
@@ -482,7 +481,7 @@ function reportOccurrence(x){
    if(!next){preview.append(calText('p','Impossible de trouver un créneau libre hors vacances et trêve.','error small'));return null}
    updates.push({id:row.id,planned_date:next,status:row.status});used.add(next);cursor=next;
   }
-  preview.append(calText('p','Aperçu : '+updates.length+' séance(s) déplacée(s), hors vacances et trêve. Les séances réalisées et annulées restent à leur date.','muted small'));
+  preview.append(calText('p','Aperçu : '+updates.length+' séance(s) déplacée(s), hors vacances et trêve. Les séances déjà placées pendant les trêves restent inchangées.','muted small'));
   for(const change of updates.slice(0,12)){
    const row=occurrenceRows.find(o=>o.id===change.id);
    preview.append(calText('p',sessionName(row.session_id)+' : '+row.planned_date+' → '+change.planned_date,'small'));
@@ -548,13 +547,13 @@ document.getElementById('calSeed').addEventListener('click',async()=>{
  const start=document.getElementById('calStart').value;
  const selected=document.getElementById('calFirst').value;
  const count=Number(document.getElementById('calCount').value);
- if(!validISO(start)||!onTraining(start)||!selected||!Number.isInteger(count)||count<1||count>46){occNotice('Sélectionne une séance, une date mardi/mercredi/vendredi et un nombre de séances valide.',true);return}
+ if(!validISO(start)||!selected||!Number.isInteger(count)||count<1||count>46){occNotice('Sélectionne une séance, une date et un nombre de séances valide.',true);return}
  const index=sessionRows.findIndex(s=>s.id===selected);const rows=sessionRows.slice(index,index+count);
  const existing=new Set(occurrenceRows.filter(x=>x.status!=='annulee').map(x=>x.session_id));
  let date=start;const used=new Set(occurrenceRows.map(x=>x.planned_date).filter(Boolean));const batch=[];
  for(const row of rows){
   if(existing.has(row.id))continue;
-  while(used.has(date))date=nextTraining(date);
+  while(used.has(date)||(batch.length>0&&isClubBreak(date)))date=nextTraining(date);
   batch.push({session_id:row.id,planned_date:date,status:'prevue'});used.add(date);date=nextTraining(date);
  }
  if(!batch.length){occNotice('Ces séances sont déjà planifiées.',true);return}
