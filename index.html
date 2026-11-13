@@ -67,7 +67,7 @@ async function loadPlayers(){
  for(const p of data){
   const line=document.createElement('div');line.className='player-line';
   const label=document.createElement('div');label.className='player-name';
-  const strong=document.createElement('strong');strong.textContent=(p.player_code||'Sans code')+' — '+(p.display_name||'Sans nom');
+  const strong=document.createElement('strong');strong.textContent=p.display_name||'Joueur sans nom';
   const state=document.createElement('span');state.className='muted small';state.textContent=p.active?' · Actif':' · Inactif';
   label.append(strong,state);
   const controls=document.createElement('div');
