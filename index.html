@@ -50,9 +50,9 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <label for="evalDate">Date réelle</label><input id="evalDate" type="date">
 <form id="collectiveForm">
 <label for="attendance">Nombre de joueurs présents</label><input id="attendance" type="number" min="0" max="30" required>
-<div id="procedures"></div>
-<label for="collectiveNotes">Bilan collectif / motricité / transfert</label><textarea id="collectiveNotes"></textarea>
-<label for="nextSteps">Adaptations pour la suite</label><textarea id="nextSteps"></textarea>
+<p id="evalThemeInfo" class="hint"></p><div id="procedures"></div>
+<h3>Bilan général de la séance</h3><label for="evalSuccesses">1. Qu’est-ce qui a bien fonctionné ?</label><textarea id="evalSuccesses" placeholder="Réussites, comportements observés, progrès…"></textarea><label for="evalDifficulties">2. Quelles difficultés ont été observées ?</label><textarea id="evalDifficulties" placeholder="Difficultés techniques, compréhension, organisation…"></textarea><label for="nextSteps">3. Que faut-il retravailler à la prochaine séance ?</label><textarea id="nextSteps" placeholder="Priorités et adaptations pédagogiques…"></textarea><details><summary>Ancien bilan général (facultatif)</summary><label for="collectiveNotes">Notes complémentaires / historique</label><textarea id="collectiveNotes"></textarea></details>
+
 <button id="saveCollective" type="submit">Enregistrer l'évaluation collective</button>
 </form>
 <form id="individualForm" hidden>
@@ -208,6 +208,7 @@ const evalStatus=document.getElementById('evalStatus');
 let sessionRows=[];
 let playerRows=[];
 const procedureNames=['Échauffement technique','Exercice technique orienté','Situation','Jeu'];
+let currentCollectiveEvaluationId=null;
 function evaluationMessage(value,error=false){evalStatus.textContent=value;evalStatus.className=error?'error':'ok'}
 function makeOption(value,label){const opt=document.createElement('option');opt.value=value;opt.textContent=label;return opt}
 function refreshEvaluationChoices(){
@@ -220,6 +221,9 @@ function refreshEvaluationChoices(){
  for(let i=0;i<4;i++){
   const div=document.createElement('div');div.className='procedure';
   const h=document.createElement('strong');h.textContent=(i+1)+'. '+procedureNames[i];
+  const objectiveLabel=document.createElement('label');objectiveLabel.textContent='Comportement attendu / objectif observable';
+  const objective=document.createElement('input');objective.name='objective'+i;objective.placeholder='Ex. Se rendre disponible après la passe';
+  div.append(objectiveLabel,objective);
   const scoreLabel=document.createElement('label');scoreLabel.textContent='Note';
   const score=document.createElement('select');score.required=true;score.name='rating'+i;
   score.append(makeOption('','Choisir une note'));
@@ -229,6 +233,56 @@ function refreshEvaluationChoices(){
   div.append(h,scoreLabel,score,noteLabel,note);target.append(div);
  }
  if(activeView==='evaluation')evalPanel.hidden=false;
+}
+function selectedSessionDate(id){
+ const matches=occurrenceRows.filter(o=>o.session_id===id&&o.status!=='annulee');
+ const chosen=matches.find(o=>o.status==='realisee')||matches[0];
+ return chosen?(chosen.actual_date||chosen.planned_date):'';
+}
+function resetCollectiveEvaluation(){
+ currentCollectiveEvaluationId=null;
+ document.getElementById('collectiveForm').reset();
+ for(let i=0;i<4;i++){const el=document.querySelector('[name="objective'+i+'"]');if(el)el.value=''}
+ document.getElementById('saveCollective').textContent='Enregistrer l’évaluation collective';
+}
+function updateEvaluationTheme(){
+ const s=sessionRows.find(row=>row.id===evalSession.value);
+ document.getElementById('evalThemeInfo').textContent=s?'Thème : '+(s.theme||'Non renseigné')+' · Phase : '+(s.phase||'Non renseignée')+' · Objectifs observables à préciser pour chaque procédé.':'';
+}
+function populateCollectiveEvaluation(row){
+ currentCollectiveEvaluationId=row.id;
+ document.getElementById('attendance').value=row.attendance??'';
+ for(let i=0;i<4;i++){
+  document.querySelector('[name="rating'+i+'"]').value=String(row.ratings?.[i]??'');
+  document.querySelector('[name="comment'+i+'"]').value=row.comments?.[i]||'';
+  document.querySelector('[name="objective'+i+'"]').value=row.objectives?.[i]||'';
+ }
+ document.getElementById('evalSuccesses').value=row.successes||'';
+ document.getElementById('evalDifficulties').value=row.difficulties||'';
+ document.getElementById('collectiveNotes').value=row.collective_notes||'';
+ document.getElementById('nextSteps').value=row.next_steps||'';
+ document.getElementById('saveCollective').textContent='Mettre à jour l’évaluation collective';
+}
+function syncEvaluationSelection(){
+ updateEvaluationTheme();resetCollectiveEvaluation();
+ const date=selectedSessionDate(evalSession.value);
+ if(date)evalDate.value=date;
+ const row=collectiveRows.find(r=>r.session_id===evalSession.value&&r.evaluation_date===evalDate.value);
+ if(row)populateCollectiveEvaluation(row);
+}
+evalSession.addEventListener('change',syncEvaluationSelection);
+evalDate.addEventListener('change',()=>{
+ updateEvaluationTheme();resetCollectiveEvaluation();
+ const row=collectiveRows.find(r=>r.session_id===evalSession.value&&r.evaluation_date===evalDate.value);
+ if(row)populateCollectiveEvaluation(row);
+});
+function evaluateOccurrence(x){
+ showView('evaluation');setEvalMode('collective');
+ evalSession.value=x.session_id;evalDate.value=x.actual_date||x.planned_date||isoDate(new Date());
+ syncEvaluationSelection();evalDate.value=x.actual_date||x.planned_date||evalDate.value;
+ const row=collectiveRows.find(r=>r.session_id===x.session_id&&r.evaluation_date===evalDate.value);
+ if(row)populateCollectiveEvaluation(row);
+ document.getElementById('evaluation').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function setEvalMode(mode){
  const collective=mode==='collective';
@@ -250,17 +304,18 @@ document.getElementById('collectiveForm').addEventListener('submit',async e=>{
  e.preventDefault();const button=document.getElementById('saveCollective');button.disabled=true;
  try{
   const common=sharedEvaluationFields();
-  const ratings=[],comments=[];
+  const ratings=[],comments=[],objectives=[];
   for(let i=0;i<4;i++){
    const score=document.querySelector('[name="rating'+i+'"]');
    const note=document.querySelector('[name="comment'+i+'"]');
    if(!score.value)throw Error('Note les quatre procédés.');
-   ratings.push(Number(score.value));comments.push(note.value.trim());
+   ratings.push(Number(score.value));comments.push(note.value.trim());objectives.push(document.querySelector('[name="objective'+i+'"]').value.trim());
   }
   const attendance=Number(document.getElementById('attendance').value);
   if(!Number.isInteger(attendance)||attendance<0||attendance>30)throw Error('Nombre de présents invalide.');
-  await playerRequest('u11_session_evaluations',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({...common,attendance,ratings,comments,collective_notes:document.getElementById('collectiveNotes').value.trim(),next_steps:document.getElementById('nextSteps').value.trim()})});
-  evaluationMessage('Évaluation collective enregistrée dans Supabase.');await loadDashboard();
+  const payload={...common,attendance,ratings,comments,objectives,successes:document.getElementById('evalSuccesses').value.trim(),difficulties:document.getElementById('evalDifficulties').value.trim(),collective_notes:document.getElementById('collectiveNotes').value.trim(),next_steps:document.getElementById('nextSteps').value.trim()};
+  if(currentCollectiveEvaluationId){await playerRequest('u11_session_evaluations?id=eq.'+encodeURIComponent(currentCollectiveEvaluationId),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});evaluationMessage('Évaluation collective mise à jour.')}else{await playerRequest('u11_session_evaluations',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});evaluationMessage('Évaluation collective enregistrée.')}
+  await loadDashboard();syncEvaluationSelection();
  }catch(err){evaluationMessage(err.message,true)}finally{button.disabled=false}
 });
 document.getElementById('individualForm').addEventListener('submit',async e=>{
@@ -369,14 +424,14 @@ async function loadDashboard(){
  dashStatus.textContent='Chargement des bilans…';
  try{
   const [col,ind]=await Promise.all([
-   playerRequest('u11_session_evaluations?select=id,session_id,evaluation_date,attendance,ratings,comments,collective_notes,next_steps&order=evaluation_date.asc&limit=1000'),
+   playerRequest('u11_session_evaluations?select=id,session_id,evaluation_date,attendance,ratings,comments,objectives,successes,difficulties,collective_notes,next_steps&order=evaluation_date.asc&limit=1000'),
    playerRequest('u11_player_evaluations?select=id,session_id,player_id,evaluation_date,criterion,score,observation&order=evaluation_date.asc&limit=1000')
   ]);
   collectiveRows=col;individualRows=ind;
   const sel=document.getElementById('dashPlayer');const old=sel.value;sel.replaceChildren(makeOption('','Tous les joueurs'));
   for(const p of playerRows)sel.append(makeOption(p.id,p.display_name||'Sans nom'));
   sel.value=old&&playerRows.some(p=>p.id===old)?old:'';
-  renderDashboard();if(activeView==='dashboard')dashPanel.hidden=false;updateHome();dashStatus.textContent='Bilans actualisés · '+col.length+' évaluations collectives · '+ind.length+' individuelles.';
+  renderDashboard();if(activeView==='dashboard')dashPanel.hidden=false;updateHome();if(activeView==='evaluation'&&evalSession.value)syncEvaluationSelection();dashStatus.textContent='Bilans actualisés · '+col.length+' évaluations collectives · '+ind.length+' individuelles.';
  }catch(e){dashPanel.hidden=false;dashStatus.textContent='Impossible de lire les bilans : '+e.message;dashStatus.className='error'}
 }
 document.getElementById('dashMonth').addEventListener('change',()=>{dashDetail.hidden=true;renderDashboard()});
@@ -448,6 +503,7 @@ function editOccurrence(x){
  calEditor.append(calText('h3',sessionName(x.session_id)));
  calEditor.append(calText('p','Statut : '+occLabels[x.status]+' · Date prévue : '+(x.planned_date||'—')+' · Date réelle : '+(x.actual_date||'—'),'muted small'));
  const actions=document.createElement('div');actions.className='cal-actions';
+ if(x.status==='realisee')actions.append(editorButton('Évaluer cette séance',()=>evaluateOccurrence(x)));
  if(x.status!=='realisee'){
   actions.append(editorButton('✓ Réalisée',()=>markDone(x)));
   actions.append(editorButton('↗ Reporter',()=>reportOccurrence(x),'cal-secondary'));
