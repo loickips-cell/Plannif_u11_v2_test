@@ -79,6 +79,7 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <div class="cal-days" id="calDays"></div>
 <p id="occMessage" role="status" aria-live="polite"></p>
 <div id="calEditor" hidden class="cal-editor"></div>
+<div class="cal-setup"><p><strong>Initialisation du planning 2026–2027</strong></p><p class="muted small">Du 1er septembre 2026 au 29 janvier 2027 : motricité le mardi (11 séances), football mercredi et vendredi, une séance le mercredi 28 octobre pendant les vacances, trêve du 14 décembre au 5 janvier. Les séances existantes ne sont pas écrasées. Vérifie les dates proposées avant de confirmer.</p><button type="button" id="calAutoSeed">Préremplir le calendrier depuis le 1er septembre</button></div>
 <details class="cal-setup"><summary>Ajouter des séances au calendrier</summary>
 <p class="muted small">Choisis une séance et une première date. Pour plusieurs séances consécutives, le calendrier utilisera les prochains créneaux d'entraînement : mardi, mercredi et vendredi. Les séances déjà planifiées ne sont pas recréées.</p>
 <label for="calFirst">Première séance</label><select id="calFirst"></select>
@@ -489,6 +490,38 @@ async function loadOccurrences(){
 }
 document.getElementById('calPrev').addEventListener('click',()=>{calCursor=new Date(calCursor.getFullYear(),calCursor.getMonth()-1,1);renderCalendar()});
 document.getElementById('calNext').addEventListener('click',()=>{calCursor=new Date(calCursor.getFullYear(),calCursor.getMonth()+1,1);renderCalendar()});
+// Préremplissage explicite, sans modification des occurrences déjà enregistrées.
+document.getElementById('calAutoSeed').addEventListener('click',async()=>{
+ if(!occurrenceReady){occNotice('Calendrier indisponible.',true);return}
+ const football=sessionRows.filter(x=>x.session_type!=='motricite').sort((a,b)=>(Number(a.session_number)||0)-(Number(b.session_number)||0)||String(a.session_code).localeCompare(String(b.session_code)));
+ const motricite=sessionRows.filter(x=>x.session_type==='motricite').sort((a,b)=>(Number(a.session_number)||0)-(Number(b.session_number)||0)||String(a.session_code).localeCompare(String(b.session_code)));
+ if(football.length!==35||motricite.length!==11){occNotice('Programmation inattendue : '+football.length+' football et '+motricite.length+' motricité. Aucun ajout effectué.',true);return}
+ const footballDates=[],motoDates=[];
+ for(let d=parseDay('2026-09-01');d<=parseDay('2027-01-29');d.setDate(d.getDate()+1)){
+  const date=isoDate(d),day=d.getDay();
+  if(day===2&&date<'2026-12-14'&&!(date>='2026-10-19'&&date<='2026-11-02'))motoDates.push(date);
+  if((day===3||day===5)&&(
+    (date<='2026-10-16')||
+    (date==='2026-10-28')||
+    (date>='2026-11-04'&&date<='2026-12-11')||
+    (date>='2027-01-06')
+  ))footballDates.push(date);
+ }
+ if(motoDates.length<11||footballDates.length<35){occNotice('Créneaux insuffisants : '+footballDates.length+' football et '+motoDates.length+' motricité. Aucun ajout effectué.',true);return}
+ const proposed=[...football.map((x,i)=>({session_id:x.id,planned_date:footballDates[i],status:'prevue'})),...motricite.map((x,i)=>({session_id:x.id,planned_date:motoDates[i],status:'prevue'}))];
+ const existing=new Set(occurrenceRows.map(x=>x.session_id));
+ const used=new Set(occurrenceRows.filter(x=>x.status!=='annulee').map(x=>x.planned_date).filter(Boolean));
+ const additions=proposed.filter(x=>!existing.has(x.session_id));
+ const conflicts=additions.filter(x=>used.has(x.planned_date));
+ if(conflicts.length){occNotice(conflicts.length+' date(s) déjà occupée(s). Aucun ajout : vérifie le planning existant.',true);return}
+ if(!additions.length){occNotice('Les 46 séances sont déjà présentes dans le calendrier.');return}
+ const first=additions.map(x=>x.planned_date).sort()[0],last=additions.map(x=>x.planned_date).sort().at(-1);
+ if(!confirm('Préremplir '+additions.length+' séance(s) entre le '+first+' et le '+last+' ?\\nLes séances déjà enregistrées seront conservées.\\nToutes les nouvelles séances seront au statut Prévue.'))return;
+ try{
+  await playerRequest('u11_session_occurrences',{method:'POST',body:JSON.stringify(additions),headers:{Prefer:'return=minimal'}});
+  calCursor=parseDay('2026-09-01');await loadOccurrences();occNotice(additions.length+' séances ajoutées. Vérifie le calendrier et corrige les dates si nécessaire.');
+ }catch(e){occNotice('Initialisation impossible : '+e.message,true)}
+});
 document.getElementById('calSeed').addEventListener('click',async()=>{
  if(!occurrenceReady){occNotice('La table de planification doit être créée dans Supabase.',true);return}
  const start=document.getElementById('calStart').value;
