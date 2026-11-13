@@ -460,45 +460,66 @@ async function cancelOccurrence(x){
  catch(e){occNotice(e.message,true)}
 }
 function reportOccurrence(x){
- calEditor.replaceChildren();calEditor.append(calText('h3','Reporter '+sessionName(x.session_id)));
+ calEditor.hidden=false;calEditor.replaceChildren();calEditor.append(calText('h3','Reporter '+sessionName(x.session_id)));
  const label=calText('label','Nouvelle date de la séance');label.htmlFor='calNewDate';calEditor.append(label);
  const input=document.createElement('input');input.id='calNewDate';input.type='date';input.value=x.planned_date||isoDate(new Date());calEditor.append(input);
+ const modeLabel=calText('label','Impact sur les autres séances');calEditor.append(modeLabel);
+ const mode=document.createElement('select');mode.id='calReportMode';
+ for(const [value,title] of [['single','Déplacer uniquement cette séance'],['cascade','Décaler également les séances suivantes']]){
+  const option=document.createElement('option');option.value=value;option.textContent=title;mode.append(option);
+ }
+ calEditor.append(mode);
  const preview=calText('div','');calEditor.append(preview);
- const all=occurrenceRows.filter(o=>o.id!==x.id&&o.status!=='realisee'&&o.status!=='annulee'&&o.planned_date).sort((a,b)=>a.planned_date.localeCompare(b.planned_date));
- const later=all.filter(o=>o.planned_date>=(x.planned_date||'9999-12-31')&&!isClubBreak(o.planned_date));
  function proposal(){
   preview.replaceChildren();const target=input.value;
-  if(!isEligibleSessionDate(target,x.session_id)||!x.planned_date||target<=x.planned_date){
-   preview.append(calText('p','Choisis une date postérieure hors vacances/trêve : mardi pour la motricité, mercredi ou vendredi pour le football.','error small'));return null;
+  if(!validISO(target)||!x.planned_date||target===x.planned_date){
+   preview.append(calText('p','Choisis une nouvelle date différente de la date actuelle.','error small'));return null;
   }
-  const fixed=new Set(occurrenceRows.filter(o=>o.id!==x.id&&(o.status==='realisee'||o.status==='annulee'||isClubBreak(o.planned_date))&&o.planned_date).map(o=>o.planned_date));
-  const before=new Set(all.filter(o=>o.planned_date<x.planned_date).map(o=>o.planned_date));
-  const updates=[{id:x.id,planned_date:target,status:'reportee'}];const used=new Set([...fixed,...before,target]);
-  if(fixed.has(target)||before.has(target)){preview.append(calText('p','Ce créneau est déjà occupé par une séance antérieure ou figée.','error small'));return null}
-  let cursor=target;
+  const conflict=occurrenceRows.find(o=>o.id!==x.id&&o.planned_date===target&&o.status!=='annulee');
+  if(conflict){
+   preview.append(calText('p','Cette date est déjà occupée par '+sessionName(conflict.session_id)+'. Choisis une autre date.','error small'));return null;
+  }
+  const normal=isEligibleSessionDate(target,x.session_id);
+  if(!normal)preview.append(calText('p','Attention : cette date est hors créneau habituel ou pendant une période de vacances/trêve. Un report individuel reste possible.','muted small'));
+  if(target<x.planned_date)preview.append(calText('p','Attention : la nouvelle date est antérieure à la date prévue.','muted small'));
+  const updates=[{id:x.id,planned_date:target,status:'reportee'}];
+  if(mode.value==='single'){
+   preview.append(calText('p','Seule cette séance sera déplacée. Toutes les autres dates resteront inchangées.','muted small'));
+   return updates;
+  }
+  if(!normal||target<x.planned_date){
+   preview.append(calText('p','Le décalage automatique des séances suivantes nécessite une date ultérieure sur un créneau habituel, hors vacances/trêve. Choisis le report individuel pour cette date.','error small'));return null;
+  }
+  const later=occurrenceRows.filter(o=>o.id!==x.id&&['prevue','reportee'].includes(o.status)&&o.planned_date>=x.planned_date&&!isClubBreak(o.planned_date)).sort((a,b)=>a.planned_date.localeCompare(b.planned_date));
+  const fixed=new Set(occurrenceRows.filter(o=>o.id!==x.id&&!later.some(z=>z.id===o.id)&&o.status!=='annulee').map(o=>o.planned_date).filter(Boolean));
+  const used=new Set([...fixed,target]);let cursor=target;
   for(const row of later){
    const next=nextEligibleSessionDate(cursor,row.session_id,used);
-   if(!next){preview.append(calText('p','Impossible de trouver un créneau libre hors vacances et trêve.','error small'));return null}
+   if(!next){preview.append(calText('p','Aucun créneau libre disponible pour le décalage automatique.','error small'));return null}
    updates.push({id:row.id,planned_date:next,status:row.status});used.add(next);cursor=next;
   }
-  preview.append(calText('p','Aperçu : '+updates.length+' séance(s) déplacée(s), hors vacances et trêve. Les séances déjà placées pendant les trêves restent inchangées.','muted small'));
+  preview.append(calText('p','Aperçu : '+updates.length+' séances déplacées. Les vacances, trêves et séances réalisées restent inchangées.','muted small'));
   for(const change of updates.slice(0,12)){
    const row=occurrenceRows.find(o=>o.id===change.id);
    preview.append(calText('p',sessionName(row.session_id)+' : '+row.planned_date+' → '+change.planned_date,'small'));
   }
-  if(updates.length>12)preview.append(calText('p','… et '+(updates.length-12)+' autre(s) séance(s).','small'));
+  if(updates.length>12)preview.append(calText('p','… et '+(updates.length-12)+' autres séances.','small'));
   return updates;
  }
- input.addEventListener('change',proposal);proposal();
+ input.addEventListener('change',proposal);mode.addEventListener('change',proposal);proposal();
  const actions=document.createElement('div');actions.className='cal-actions';
  actions.append(editorButton('Confirmer le report',async()=>{
   const updates=proposal();if(!updates)return;
-  if(!confirm('Confirmer le déplacement de '+updates.length+' séance(s) ?'))return;
+  if(!confirm(mode.value==='single'?'Déplacer uniquement cette séance au '+input.value+' ?':'Confirmer le décalage de '+updates.length+' séances ?'))return;
   try{
-   // RPC transactionnelle : aucune modification partielle si une ligne ne peut être mise à jour.
-   await playerRequest('rpc/u11_report_occurrences',{method:'POST',body:JSON.stringify({p_updates:updates})});
-   await loadOccurrences();calEditor.hidden=true;occNotice(updates.length+' séance(s) repositionnée(s).');
-  }catch(e){occNotice('Report non appliqué : '+e.message+'. Vérifie que la migration de report a été exécutée.',true)}
+   if(mode.value==='single'){
+    // Modification individuelle : la RPC de cascade impose les jours habituels, contrairement à ce mode.
+    await patchOccurrence(x.id,{planned_date:input.value,status:'reportee'});
+   }else{
+    await playerRequest('rpc/u11_report_occurrences',{method:'POST',body:JSON.stringify({p_updates:updates})});
+   }
+   calCursor=parseDay(input.value);await loadOccurrences();calEditor.hidden=true;occNotice(mode.value==='single'?'Séance déplacée sans modifier les autres dates.':updates.length+' séances repositionnées.');
+  }catch(e){occNotice('Report non appliqué : '+e.message,true)}
  }));
  actions.append(editorButton('Retour',()=>editOccurrence(x),'cal-secondary'));calEditor.append(actions);
 }
