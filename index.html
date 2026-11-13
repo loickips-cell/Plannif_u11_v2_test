@@ -79,7 +79,7 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <div class="cal-days" id="calDays"></div>
 <p id="occMessage" role="status" aria-live="polite"></p>
 <div id="calEditor" hidden class="cal-editor"></div>
-<div class="cal-setup"><p><strong>Initialisation du planning 2026–2027</strong></p><p class="muted small">Du 1er septembre 2026 au 29 janvier 2027 : motricité le mardi (11 séances), football mercredi et vendredi, une séance le mercredi 28 octobre pendant les vacances, trêve du 14 décembre au 5 janvier. Les séances existantes ne sont pas écrasées. Vérifie les dates proposées avant de confirmer.</p><button type="button" id="calAutoSeed">Préremplir le calendrier depuis le 1er septembre</button> <button type="button" id="calReset" class="cal-secondary">Réinitialiser les séances non réalisées</button><p class="muted small">Réinitialiser replace les séances prévues ou reportées sur les créneaux de la programmation, sans toucher aux séances réalisées, annulées ou placées manuellement pendant les trêves.</p></div>
+<div class="cal-setup"><p><strong>Initialisation du planning 2026–2027</strong></p><p class="muted small">Du 1er septembre 2026 au 29 janvier 2027 : motricité le mardi (11 séances), football mercredi et vendredi, une séance le mercredi 28 octobre pendant les vacances, trêve du 14 décembre au 5 janvier. Les séances existantes ne sont pas écrasées. Vérifie les dates proposées avant de confirmer.</p><button type="button" id="calAutoSeed">Préremplir le calendrier depuis le 1er septembre</button> <button type="button" id="calReset" class="cal-secondary">Réinitialiser les séances non réalisées</button><p id="calResetMessage" role="status" aria-live="polite"></p><p class="muted small">Réinitialiser replace les séances prévues ou reportées sur les créneaux de la programmation, sans toucher aux séances réalisées, annulées ou placées manuellement pendant les trêves.</p></div>
 <details class="cal-setup"><summary>Ajouter des séances au calendrier</summary>
 <p class="muted small">Choisis une séance et une première date. Tu peux ajouter manuellement une séance pendant les vacances ou la trêve. Pour plusieurs séances consécutives, les dates suivantes utilisent les créneaux habituels, hors trêves. Les séances déjà planifiées ne sont pas recréées.</p>
 <label for="calFirst">Première séance</label><select id="calFirst"></select>
@@ -524,11 +524,14 @@ function originalCalendarSlots(){
  return {footballDates,motoDates};
 }
 document.getElementById('calReset').addEventListener('click',async()=>{
- if(!occurrenceReady){occNotice('Calendrier indisponible.',true);return}
+ const resetMessage=document.getElementById('calResetMessage');
+ const feedback=(msg,error=false)=>{resetMessage.textContent=msg;resetMessage.className=error?'error':'ok';occNotice(msg,error)};
+ feedback('Analyse des séances en cours…');
+ if(!occurrenceReady){feedback('Calendrier indisponible.',true);return}
  const sortSessions=rows=>rows.sort((a,b)=>(Number(a.session_number)||0)-(Number(b.session_number)||0)||String(a.session_code).localeCompare(String(b.session_code)));
  const football=sortSessions(sessionRows.filter(s=>s.session_type!=='motricite'));
  const motricite=sortSessions(sessionRows.filter(s=>s.session_type==='motricite'));
- if(football.length!==35||motricite.length!==11){occNotice('Programmation inattendue. Réinitialisation annulée.',true);return}
+ if(football.length!==35||motricite.length!==11){feedback('Programmation inattendue. Réinitialisation annulée.',true);return}
  const {footballDates,motoDates}=originalCalendarSlots();
  const canonical=new Map([...football.map((s,i)=>[s.id,footballDates[i]]),...motricite.map((s,i)=>[s.id,motoDates[i]])]);
  const fixed=occurrenceRows.filter(o=>o.status==='realisee'||o.status==='annulee'||(o.planned_date&&isClubBreak(o.planned_date)));
@@ -539,22 +542,23 @@ document.getElementById('calReset').addEventListener('click',async()=>{
   const occurrence=movable.find(o=>o.session_id===row.id);
   if(!occurrence)continue;
   let date=canonical.get(row.id);
-  if(!date){occNotice('Date initiale manquante. Aucun changement.',true);return}
+  if(!date){feedback('Date initiale manquante. Aucun changement.',true);return}
   if(used.has(date)){
    const alternative=nextEligibleSessionDate(date,row.id,used);
-   if(!alternative){occNotice('Impossible de replacer les séances sans chevauchement.',true);return}
+   if(!alternative){feedback('Impossible de replacer les séances sans chevauchement.',true);return}
    date=alternative;
   }
   used.add(date);
   if(occurrence.planned_date!==date||occurrence.status!=='prevue')updates.push({id:occurrence.id,planned_date:date,status:'prevue'});
  }
- if(!updates.length){occNotice('Les séances non réalisées sont déjà à leurs dates initiales.');return}
- if(!confirm('Réinitialiser '+updates.length+' séance(s) non réalisée(s) ?\\nLes séances reportées seront remises au statut Prévue.\\nLes séances réalisées, annulées et celles pendant les trêves resteront inchangées.'))return;
+ if(!updates.length){feedback('Aucune séance à réinitialiser : les séances non réalisées sont déjà sur les dates prévues.');return}
+ feedback(updates.length+' séance(s) à réinitialiser. Confirmation demandée…');
+ if(!confirm('Réinitialiser '+updates.length+' séance(s) non réalisée(s) ?\\nLes séances reportées seront remises au statut Prévue.\\nLes séances réalisées, annulées et celles pendant les trêves resteront inchangées.')){feedback('Réinitialisation annulée.');return}
  try{
   // L'appel RPC est atomique ; le serveur refuse toute modification d'une séance réalisée.
   await playerRequest('rpc/u11_report_occurrences',{method:'POST',body:JSON.stringify({p_updates:updates})});
-  await loadOccurrences();occNotice(updates.length+' séance(s) non réalisée(s) réinitialisée(s).');
- }catch(e){occNotice('Réinitialisation non appliquée : '+e.message,true)}
+  await loadOccurrences();calCursor=parseDay('2026-09-01');renderCalendar();feedback(updates.length+' séance(s) réinitialisée(s). Calendrier affiché à partir de septembre 2026.');
+ }catch(e){feedback('Réinitialisation non appliquée : '+e.message,true)}
 });
 // Préremplissage explicite, sans modification des occurrences déjà enregistrées.
 document.getElementById('calAutoSeed').addEventListener('click',async()=>{
