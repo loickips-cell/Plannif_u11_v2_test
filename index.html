@@ -382,6 +382,28 @@ function isoDate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2
 function parseDay(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d,12)}
 function nextTraining(date){const d=parseDay(date);do{d.setDate(d.getDate()+1)}while(!trainingDays.includes(d.getDay()));return isoDate(d)}
 function onTraining(date){return trainingDays.includes(parseDay(date).getDay())}
+// Calendrier du club : vacances de Toussaint et trêve hivernale.
+function isClubBreak(date){
+ return (date>='2026-10-19'&&date<='2026-11-02'&&date!=='2026-10-28')||
+        (date>='2026-12-14'&&date<='2027-01-05');
+}
+function isEligibleSessionDate(date,sessionId){
+ if(!validISO(date)||isClubBreak(date))return false;
+ const session=sessionRows.find(s=>s.id===sessionId);
+ if(!session)return false;
+ const day=parseDay(date).getDay();
+ if(session.session_type==='motricite')return day===2;
+ if(date==='2026-10-28')return day===3;
+ return day===3||day===5;
+}
+function nextEligibleSessionDate(after,sessionId,used){
+ const d=parseDay(after);
+ for(let i=0;i<730;i++){
+  d.setDate(d.getDate()+1);const date=isoDate(d);
+  if(isEligibleSessionDate(date,sessionId)&&!used.has(date))return date;
+ }
+ return null;
+}
 function calText(tag,content,cls){const n=document.createElement(tag);n.textContent=content;if(cls)n.className=cls;return n}
 function renderCalendar(){
  const host=document.getElementById('calDays');host.replaceChildren();
@@ -447,8 +469,8 @@ function reportOccurrence(x){
  const later=all.filter(o=>o.planned_date>=(x.planned_date||'9999-12-31'));
  function proposal(){
   preview.replaceChildren();const target=input.value;
-  if(!validISO(target)||!onTraining(target)||!x.planned_date||target<=x.planned_date){
-   preview.append(calText('p','Choisis un créneau d’entraînement (mardi, mercredi ou vendredi) postérieur à la date prévue.','error small'));return null;
+  if(!isEligibleSessionDate(target,x.session_id)||!x.planned_date||target<=x.planned_date){
+   preview.append(calText('p','Choisis une date postérieure hors vacances/trêve : mardi pour la motricité, mercredi ou vendredi pour le football.','error small'));return null;
   }
   const fixed=new Set(occurrenceRows.filter(o=>o.id!==x.id&&(o.status==='realisee'||o.status==='annulee')&&o.planned_date).map(o=>o.planned_date));
   const before=new Set(all.filter(o=>o.planned_date<x.planned_date).map(o=>o.planned_date));
@@ -456,12 +478,11 @@ function reportOccurrence(x){
   if(fixed.has(target)||before.has(target)){preview.append(calText('p','Ce créneau est déjà occupé par une séance antérieure ou figée.','error small'));return null}
   let cursor=target;
   for(const row of later){
-   let next=nextTraining(cursor),guard=0;
-   while(used.has(next)&&guard++<400)next=nextTraining(next);
-   if(guard>=400){preview.append(calText('p','Impossible de trouver un créneau libre.','error small'));return null}
+   const next=nextEligibleSessionDate(cursor,row.session_id,used);
+   if(!next){preview.append(calText('p','Impossible de trouver un créneau libre hors vacances et trêve.','error small'));return null}
    updates.push({id:row.id,planned_date:next,status:row.status});used.add(next);cursor=next;
   }
-  preview.append(calText('p','Aperçu : '+updates.length+' séance(s) déplacée(s). Les séances réalisées et annulées restent à leur date.','muted small'));
+  preview.append(calText('p','Aperçu : '+updates.length+' séance(s) déplacée(s), hors vacances et trêve. Les séances réalisées et annulées restent à leur date.','muted small'));
   for(const change of updates.slice(0,12)){
    const row=occurrenceRows.find(o=>o.id===change.id);
    preview.append(calText('p',sessionName(row.session_id)+' : '+row.planned_date+' → '+change.planned_date,'small'));
