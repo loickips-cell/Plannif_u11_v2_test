@@ -80,6 +80,19 @@ select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #bdccd9;bo
 <p id="occMessage" role="status" aria-live="polite"></p>
 <div id="calEditor" hidden class="cal-editor"></div>
 <div class="cal-setup"><p><strong>Initialisation du planning 2026–2027</strong></p><p class="muted small">Du 1er septembre 2026 au 29 janvier 2027 : motricité le mardi (11 séances), football mercredi et vendredi, une séance le mercredi 28 octobre pendant les vacances, trêve du 14 décembre au 5 janvier. Les séances existantes ne sont pas écrasées. Vérifie les dates proposées avant de confirmer.</p><button type="button" id="calAutoSeed">Préremplir le calendrier depuis le 1er septembre</button> <button type="button" id="calReset" class="cal-secondary">Réinitialiser les séances non réalisées</button><p id="calResetMessage" role="status" aria-live="polite"></p><p class="muted small">Réinitialiser replace les séances prévues ou reportées sur les créneaux de la programmation, sans toucher aux séances réalisées, annulées ou à la séance ludique du 28 octobre. Les autres séances non réalisées placées par erreur pendant les vacances seront replacées.</p></div>
+<details class="cal-setup" id="customSessionPanel"><summary>+ Nouvelle séance supplémentaire</summary>
+<p class="muted small">Numéro attribué automatiquement. Les quatre procédés seront disponibles dans l'évaluation collective. Les champs FFF sont facultatifs.</p>
+<form id="customSessionForm">
+<label for="customDate">Date *</label><input type="date" id="customDate" required>
+<label for="customTitle">Nom de la séance *</label><input id="customTitle" maxlength="160" required placeholder="Ex. Contrôle orienté">
+<label for="customPhase">Phase de jeu FFF (facultatif)</label>
+<select id="customPhase"><option value="">Non renseignée</option><option>ON A LE BALLON</option><option>TRANSITION DÉFENSIVE</option><option>ON N’A PAS LE BALLON</option><option>TRANSITION OFFENSIVE</option></select>
+<label for="customTheme">Thème FFF (facultatif)</label><input id="customTheme" maxlength="200" placeholder="Ex. Conserver – créer des angles de passe">
+<label for="customPrinciple">Principe de jeu (facultatif)</label><input id="customPrinciple" maxlength="200" placeholder="Ex. Se rendre disponible">
+<label for="customNotes">Notes (facultatif)</label><textarea id="customNotes" rows="2"></textarea>
+<button type="submit" id="customSave">Enregistrer la séance</button>
+</form><p id="customMessage" role="status" aria-live="polite"></p>
+</details>
 <details class="cal-setup"><summary>Ajouter des séances au calendrier</summary>
 <p class="muted small">Choisis une séance et une première date. Tu peux ajouter manuellement une séance pendant les vacances ou la trêve. Pour plusieurs séances consécutives, les dates suivantes utilisent les créneaux habituels, hors trêves. Les séances déjà planifiées ne sont pas recréées.</p>
 <label for="calFirst">Première séance</label><select id="calFirst"></select>
@@ -440,9 +453,37 @@ function editOccurrence(x){
   actions.append(editorButton('↗ Reporter',()=>reportOccurrence(x),'cal-secondary'));
   actions.append(editorButton('✕ Annuler',()=>cancelOccurrence(x),'cal-secondary'));
  }else{calEditor.append(calText('p','Séance réalisée : sa date est conservée et elle ne sera pas déplacée automatiquement.','muted small'))}
+ if(sessionRows.find(s=>s.id===x.session_id)?.is_custom){actions.append(editorButton('Supprimer cette séance',()=>deleteCustomSession(x),'cal-secondary'))}
  actions.append(editorButton('Fermer',()=>{calEditor.hidden=true},'cal-secondary'));calEditor.append(actions);
  calEditor.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
+async function deleteCustomSession(occ){
+ const s=sessionRows.find(row=>row.id===occ.session_id);
+ if(!s?.is_custom)return;
+ if(!confirm('Supprimer définitivement '+s.session_code+' ? Les séances initiales ne seront pas touchées. Une séance évaluée ne peut pas être supprimée.'))return;
+ try{
+  await playerRequest('rpc/u11_delete_custom_session',{method:'POST',body:JSON.stringify({p_session_id:s.id})});
+  await showSessions();refreshEvaluationChoices();await loadOccurrences();await loadDashboard();
+  calEditor.hidden=true;occNotice('Séance supplémentaire supprimée.');
+ }catch(e){occNotice('Suppression impossible : '+e.message,true)}
+}
+document.getElementById('customSessionForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const button=document.getElementById('customSave'),notice=document.getElementById('customMessage');
+ if(!occurrenceReady){notice.textContent='Connecte-toi et charge le calendrier.';return}
+ const values={p_date:document.getElementById('customDate').value,p_title:document.getElementById('customTitle').value.trim(),
+  p_phase:document.getElementById('customPhase').value||null,p_theme:document.getElementById('customTheme').value.trim()||null,
+  p_principle:document.getElementById('customPrinciple').value.trim()||null,p_notes:document.getElementById('customNotes').value.trim()||null};
+ if(!validISO(values.p_date)||!values.p_title){notice.textContent='Date et nom obligatoires.';return}
+ button.disabled=true;notice.textContent='Enregistrement en cours…';
+ try{
+  await playerRequest('rpc/u11_create_custom_session',{method:'POST',body:JSON.stringify(values)});
+  await showSessions();refreshEvaluationChoices();await loadOccurrences();await loadDashboard();
+  calCursor=parseDay(values.p_date);renderCalendar();document.getElementById('customSessionForm').reset();
+  notice.textContent='Séance supplémentaire créée. Elle est disponible dans les évaluations collectives et individuelles.';
+ }catch(err){notice.textContent='Création impossible : '+err.message}
+ finally{button.disabled=false}
+});
 async function patchOccurrence(id,payload){
  await playerRequest('u11_session_occurrences?id=eq.'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify({...payload,updated_at:new Date().toISOString()})});
 }
@@ -625,7 +666,7 @@ const sessions=document.getElementById('sessions');
 const listing=document.getElementById('listing');
 const total=document.getElementById('total');
 async function showSessions(){
- const response=await fetch(BASE+'/rest/v1/u11_sessions?select=id,session_code,session_number,session_type,month_name,phase,theme,reference_page&limit=100',{headers:{apikey:PUBLISHABLE_KEY,Authorization:'Bearer '+accessToken},cache:'no-store'});
+ const response=await fetch(BASE+'/rest/v1/u11_sessions?select=id,session_code,session_number,session_type,month_name,phase,theme,reference_page,is_custom,principle&limit=200',{headers:{apikey:PUBLISHABLE_KEY,Authorization:'Bearer '+accessToken},cache:'no-store'});
  if(!response.ok)throw Error('Lecture des séances impossible (HTTP '+response.status+').');
  const data=await response.json();
  if(!Array.isArray(data))throw Error('Réponse de séances incorrecte.');
@@ -646,6 +687,8 @@ async function showSessions(){
   }
   listing.append(block);
  }
+ const extra=data.filter(x=>x.is_custom);
+ if(extra.length){const block=document.createElement('div');block.className='card';block.append(calText('h2','Séances supplémentaires ('+extra.length+')'));for(const row of extra){block.append(calText('p',(row.session_code||'Séance')+' — '+(row.theme||'Sans thème')))}listing.append(block)}
  if(activeView==='sessions')sessions.hidden=false;
  return data.length;
 }
