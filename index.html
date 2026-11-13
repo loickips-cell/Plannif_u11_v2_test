@@ -209,6 +209,8 @@ let sessionRows=[];
 let playerRows=[];
 const procedureNames=['Échauffement technique','Exercice technique orienté','Situation','Jeu'];
 let currentCollectiveEvaluationId=null;
+let procedureReferences=[];
+let procedureReferenceError='';
 function evaluationMessage(value,error=false){evalStatus.textContent=value;evalStatus.className=error?'error':'ok'}
 function makeOption(value,label){const opt=document.createElement('option');opt.value=value;opt.textContent=label;return opt}
 function refreshEvaluationChoices(){
@@ -223,7 +225,8 @@ function refreshEvaluationChoices(){
   const h=document.createElement('strong');h.textContent=(i+1)+'. '+procedureNames[i];
   const objectiveLabel=document.createElement('label');objectiveLabel.textContent='Comportement attendu / objectif observable';
   const objective=document.createElement('input');objective.name='objective'+i;objective.placeholder='Ex. Se rendre disponible après la passe';
-  div.append(objectiveLabel,objective);
+  const source=document.createElement('p');source.className='hint';source.id='procedureSource'+i;
+  div.append(source,objectiveLabel,objective);
   const scoreLabel=document.createElement('label');scoreLabel.textContent='Note';
   const score=document.createElement('select');score.required=true;score.name='rating'+i;
   score.append(makeOption('','Choisir une note'));
@@ -245,6 +248,29 @@ function resetCollectiveEvaluation(){
  for(let i=0;i<4;i++){const el=document.querySelector('[name="objective'+i+'"]');if(el)el.value=''}
  document.getElementById('saveCollective').textContent='Enregistrer l’évaluation collective';
 }
+function normalizePedagogicalText(value){
+ return String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+}
+async function loadProcedureReferences(){
+ try{
+  procedureReferences=await playerRequest('u11_procedure_references?select=session_code,procedure_number,procedure_code,procedure_title,expected_behavior,pdf_page,pdf_theme&limit=250');
+  procedureReferenceError='';
+ }catch(e){procedureReferences=[];procedureReferenceError='Référentiel des procédés indisponible : exécuter la migration SQL des 184 comportements attendus.'}
+}
+function applyProcedureReferences(){
+ const s=sessionRows.find(row=>row.id===evalSession.value);
+ const matches=s?procedureReferences.filter(row=>row.session_code===s.session_code):[];
+ const correct=matches.length===4&&new Set(matches.map(x=>x.procedure_number)).size===4&&matches.every(x=>normalizePedagogicalText(x.pdf_theme)===normalizePedagogicalText(s.theme));
+ for(let i=0;i<4;i++){
+  const label=document.getElementById('procedureSource'+i);
+  const objective=document.querySelector('[name="objective'+i+'"]');
+  const ref=correct?matches.find(x=>x.procedure_number===i+1):null;
+  label.textContent=ref?ref.procedure_title+' · PDF page '+ref.pdf_page+' · '+ref.procedure_code:(s?.is_custom?'Séance supplémentaire : comportement à renseigner.':procedureReferenceError||'Correspondance PDF non validée : saisie manuelle requise.');
+  if(ref&&!objective.value)objective.value=ref.expected_behavior;
+ }
+ const info=document.getElementById('evalThemeInfo');
+ if(s&&!s.is_custom&&!correct)info.textContent+=' ⚠ Références non validées pour cette séance.';
+}
 function updateEvaluationTheme(){
  const s=sessionRows.find(row=>row.id===evalSession.value);
  document.getElementById('evalThemeInfo').textContent=s?'Thème : '+(s.theme||'Non renseigné')+' · Phase : '+(s.phase||'Non renseignée')+' · Objectifs observables à préciser pour chaque procédé.':'';
@@ -264,7 +290,7 @@ function populateCollectiveEvaluation(row){
  document.getElementById('saveCollective').textContent='Mettre à jour l’évaluation collective';
 }
 function syncEvaluationSelection(){
- updateEvaluationTheme();resetCollectiveEvaluation();
+ updateEvaluationTheme();resetCollectiveEvaluation();applyProcedureReferences();
  const date=selectedSessionDate(evalSession.value);
  if(date)evalDate.value=date;
  const row=collectiveRows.find(r=>r.session_id===evalSession.value&&r.evaluation_date===evalDate.value);
@@ -272,7 +298,7 @@ function syncEvaluationSelection(){
 }
 evalSession.addEventListener('change',syncEvaluationSelection);
 evalDate.addEventListener('change',()=>{
- updateEvaluationTheme();resetCollectiveEvaluation();
+ updateEvaluationTheme();resetCollectiveEvaluation();applyProcedureReferences();
  const row=collectiveRows.find(r=>r.session_id===evalSession.value&&r.evaluation_date===evalDate.value);
  if(row)populateCollectiveEvaluation(row);
 });
@@ -727,6 +753,7 @@ async function showSessions(){
  const data=await response.json();
  if(!Array.isArray(data))throw Error('Réponse de séances incorrecte.');
  sessionRows=data;
+ await loadProcedureReferences();
  listing.replaceChildren();
  total.textContent=data.length+' séances enregistrées';
  for(const month of ['Septembre','Octobre','Novembre','Décembre']){
