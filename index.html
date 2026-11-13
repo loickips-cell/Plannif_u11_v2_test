@@ -580,8 +580,8 @@ document.getElementById('calReset').addEventListener('click',async()=>{
  feedback('Analyse des séances en cours…');
  if(!occurrenceReady){feedback('Calendrier indisponible.',true);return}
  const sortSessions=rows=>rows.sort((a,b)=>(Number(a.session_number)||0)-(Number(b.session_number)||0)||String(a.session_code).localeCompare(String(b.session_code)));
- const football=sortSessions(sessionRows.filter(s=>s.session_type!=='motricite'));
- const motricite=sortSessions(sessionRows.filter(s=>s.session_type==='motricite'));
+ const football=sortSessions(sessionRows.filter(s=>!s.is_custom&&s.session_type!=='motricite'));
+ const motricite=sortSessions(sessionRows.filter(s=>!s.is_custom&&s.session_type==='motricite'));
  if(football.length!==35||motricite.length!==11){feedback('Programmation inattendue. Réinitialisation annulée.',true);return}
  const {footballDates,motoDates}=originalCalendarSlots();
  const canonical=new Map([...football.map((s,i)=>[s.id,footballDates[i]]),...motricite.map((s,i)=>[s.id,motoDates[i]])]);
@@ -614,8 +614,8 @@ document.getElementById('calReset').addEventListener('click',async()=>{
 // Préremplissage explicite, sans modification des occurrences déjà enregistrées.
 document.getElementById('calAutoSeed').addEventListener('click',async()=>{
  if(!occurrenceReady){occNotice('Calendrier indisponible.',true);return}
- const football=sessionRows.filter(x=>x.session_type!=='motricite').sort((a,b)=>(Number(a.session_number)||0)-(Number(b.session_number)||0)||String(a.session_code).localeCompare(String(b.session_code)));
- const motricite=sessionRows.filter(x=>x.session_type==='motricite').sort((a,b)=>(Number(a.session_number)||0)-(Number(b.session_number)||0)||String(a.session_code).localeCompare(String(b.session_code)));
+ const football=sessionRows.filter(x=>!x.is_custom&&x.session_type!=='motricite').sort((a,b)=>(Number(a.session_number)||0)-(Number(b.session_number)||0)||String(a.session_code).localeCompare(String(b.session_code)));
+ const motricite=sessionRows.filter(x=>!x.is_custom&&x.session_type==='motricite').sort((a,b)=>(Number(a.session_number)||0)-(Number(b.session_number)||0)||String(a.session_code).localeCompare(String(b.session_code)));
  if(football.length!==35||motricite.length!==11){occNotice('Programmation inattendue : '+football.length+' football et '+motricite.length+' motricité. Aucun ajout effectué.',true);return}
  const footballDates=[],motoDates=[];
  for(let d=parseDay('2026-09-01');d<=parseDay('2027-01-29');d.setDate(d.getDate()+1)){
@@ -674,7 +674,7 @@ async function showSessions(){
  listing.replaceChildren();
  total.textContent=data.length+' séances enregistrées';
  for(const month of ['Septembre','Octobre','Novembre','Décembre']){
-  const rows=data.filter(x=>String(x.month_name||'').toLowerCase()===month.toLowerCase());
+  const rows=data.filter(x=>!x.is_custom&&String(x.month_name||'').toLowerCase()===month.toLowerCase());
   if(!rows.length)continue;
   rows.sort((a,b)=>(Number(a.session_number)||0)-(Number(b.session_number)||0)||String(a.session_code).localeCompare(String(b.session_code)));
   const block=document.createElement('div');block.className='card';block.style.marginBottom='16px';
